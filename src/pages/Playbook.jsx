@@ -1,401 +1,711 @@
+import { useState, useEffect } from 'react'
 import Navbar from '../components/Navbar'
+import TabDashboard from '../components/TabDashboard'
+import WorkflowCard from '../components/WorkflowCard'
+import WorkflowStep from '../components/WorkflowStep'
+import PromptBlock from '../components/PromptBlock'
+import PromptLibrary from '../components/PromptLibrary'
 
-const BORDER = '#2a2a38'
+const ALL_STEP_KEYS = [
+  'restack_playbook_audit_step_1',
+  'restack_playbook_audit_step_2',
+  'restack_playbook_audit_step_3',
+  'restack_playbook_workflows_step_1',
+  'restack_playbook_workflows_step_2',
+  'restack_playbook_workflows_step_3',
+  'restack_playbook_portfolio_step_1',
+  'restack_playbook_portfolio_step_2',
+  'restack_playbook_promotion_step_1',
+  'restack_playbook_promotion_step_2',
+  'restack_playbook_calendar_step_1',
+  'restack_playbook_calendar_step_2',
+  'restack_playbook_calendar_step_3',
+  'restack_playbook_calendar_step_4',
+]
 
-export default function Playbook() {
+const ALL_PROMPTS = [
+  {
+    label: 'Time Capture Log Format',
+    content: '[Time] | [Task] | [Category]\nExample: 9:00-9:30 | Responded to 6 client emails | Communication',
+  },
+  {
+    label: 'Automation Scoring Spreadsheet',
+    content: 'Columns: Task | Category | Hours/Week | Automation Score (1-5) | Potential Tool | Priority\nPriority Score = Automation Score × Hours Per Week\nHigher score = build this automation first.',
+  },
+  {
+    label: 'Master Prompt Template',
+    content: '"You are a [ROLE]. [CONTEXT about the situation]. [SPECIFIC TASK you want completed]. [CONSTRAINTS on length, tone, format, exclusions]. Structure the output as: [OUTPUT FORMAT]."',
+  },
+  {
+    label: 'Prompt Chain — Step 1: Extract',
+    content: '"Here are raw notes from 5 client feedback calls:\n[paste notes]\nExtract and organize into:\n1. Common themes (mentioned by 2+ clients)\n2. Unique concerns (mentioned by 1 client)\n3. Specific feature requests\n4. Sentiment per client"',
+  },
+  {
+    label: 'Prompt Chain — Step 2: Analyze',
+    content: '"Based on this organized feedback:\n[paste Step 1 output]\nIdentify:\n1. Top 3 issues by frequency and severity\n2. Quick fixes vs. structural problems\n3. Contradictions between clients\n4. The one change that improves satisfaction most"',
+  },
+  {
+    label: 'Prompt Chain — Step 3: Deliver',
+    content: '"Based on this analysis:\n[paste Step 2 output]\nWrite a Client Feedback Strategy Brief for leadership. Include:\n1. Executive summary (one paragraph)\n2. Priority matrix (top issues by impact and effort)\n3. Recommended actions for next quarter\n4. Risks if we don\'t act\nTone: data-driven, concise, suitable for a VP audience."',
+  },
+  {
+    label: 'Automation Portfolio Tracker Columns',
+    content: 'Name | Department | Date Built | Tools Used | Time Before (min) | Time After (min) | Frequency (×/week) | Weekly Saved | Monthly Saved | Status\nWeekly Saved = (Time Before − Time After) × Frequency\nMonthly Saved = Weekly Saved × 4.3',
+  },
+  {
+    label: 'Dollar Value Formula',
+    content: 'Hourly Rate = Annual Salary ÷ 2,080\n\n$60K/year → ~$29/hr\nSave 10 hrs/month → $290/month = $3,480/year\nSave 20 hrs/month → $580/month = $6,960/year',
+  },
+  {
+    label: 'Promotion Proposal Email',
+    content: 'Subject: Proposal: AI Efficiency Pilot\n\n"Over the past [X weeks], I\'ve been building AI-powered workflows that have saved our team approximately [X hours/month]. [Colleague 1] and [Colleague 2] have seen similar results after I helped them set up systems.\n\nI\'d like to propose a small pilot: I\'ll spend [X hours/week] helping [X team members] automate their top 3 time-wasters over the next 30 days. I\'ll track and report results.\n\nIf successful, this could save the department [estimated hours/dollars] annually.\n\nWould you be open to discussing this in our next 1:1?"',
+  },
+  {
+    label: 'Promotion Conversation Opener',
+    content: '"Over the past 90 days, I\'ve implemented systems that have saved our team [X hours/month]. That translates to approximately $[dollar amount] in productivity recovered. I\'d like to talk about expanding this work — and what that could look like in terms of my role."',
+  },
+]
+
+const CALENDAR_WEEKS = [
+  {
+    id: 'week1',
+    title: 'Week 1 — Foundation',
+    subtitle: 'Days 1–7',
+    step: 1,
+    days: [
+      { day: 'Day 1', task: 'Set 30-min timer. Start logging every task.' },
+      { day: 'Day 2', task: 'Keep logging. No skipping. No estimating.' },
+      { day: 'Day 3', task: 'Keep logging. Note patterns you spot.' },
+      { day: 'Day 4', task: 'Keep logging. You\'re building the evidence.' },
+      { day: 'Day 5', task: 'End of capture week. Keep going.' },
+      { day: 'Day 6', task: 'Score every task 1–5. Calculate priority scores. Build Automation Roadmap.' },
+      { day: 'Day 7', task: 'Create Efficiency Portfolio spreadsheet.' },
+    ],
+  },
+  {
+    id: 'week2',
+    title: 'Week 2 — Quick Wins',
+    subtitle: 'Days 8–14',
+    step: 2,
+    days: [
+      { day: 'Day 8', task: 'Build Wave 1 automation #1.' },
+      { day: 'Day 9', task: 'Build Wave 1 automation #2.' },
+      { day: 'Day 10', task: 'Build Wave 1 automation #3.' },
+      { day: 'Day 11', task: 'Refine and stabilize all Wave 1 automations.' },
+      { day: 'Day 12', task: 'First Portfolio Review. Calculate weekly time saved + dollar equivalent.' },
+      { day: 'Day 13', task: 'Help one colleague automate one task.' },
+      { day: 'Day 14', task: 'Document everything you\'ve built so far.' },
+    ],
+  },
+  {
+    id: 'week3',
+    title: 'Week 3 — High-Impact Builds',
+    subtitle: 'Days 15–21',
+    step: 3,
+    days: [
+      { day: 'Day 15', task: 'Build Wave 2 automation #1 (high-impact).' },
+      { day: 'Day 16', task: 'Build Wave 2 automation #2.' },
+      { day: 'Day 17', task: 'Build Wave 2 automation #3.' },
+      { day: 'Day 18', task: 'Build your first prompt chain.' },
+      { day: 'Day 19', task: 'Refine prompt chain. Test outputs.' },
+      { day: 'Day 20', task: 'Second Portfolio Review. Target: 5–10+ hrs/month saved.' },
+      { day: 'Day 21', task: 'Help Colleague #2. Different department.' },
+    ],
+  },
+  {
+    id: 'week4',
+    title: 'Week 4 — Integration & Presentation',
+    subtitle: 'Days 22–30',
+    step: 4,
+    days: [
+      { day: 'Day 22', task: 'Wave 3 — connect automations into systems.' },
+      { day: 'Day 23', task: 'Build multi-step Zap with conditional logic.' },
+      { day: 'Day 24', task: 'Final automation build. System integration.' },
+      { day: 'Day 25', task: 'Final Portfolio Review.' },
+      { day: 'Day 26', task: 'Calculate total dollar impact. Prepare the numbers.' },
+      { day: 'Day 27', task: 'Prepare promotion case.' },
+      { day: 'Day 28', task: 'Draft and send the proposal email.' },
+      { day: 'Day 29', task: 'Follow up if needed. Prepare for the conversation.' },
+      { day: 'Day 30', task: 'Have the promotion conversation.' },
+    ],
+  },
+]
+
+function ProgressSummary() {
+  const [count, setCount] = useState(0)
+  useEffect(() => {
+    const done = ALL_STEP_KEYS.filter((k) => localStorage.getItem(k) === 'true').length
+    setCount(done)
+  }, [])
+  const total = ALL_STEP_KEYS.length
+  const pct = Math.round((count / total) * 100)
   return (
-    <div className="min-h-screen text-white flex flex-col" style={{ backgroundColor: '#111118' }}>
-      <Navbar />
+    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-6">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-zinc-400 text-sm">Playbook Progress</span>
+        <span className="text-teal-400 font-bold text-sm">{count}/{total} steps</span>
+      </div>
+      <div className="w-full bg-zinc-800 rounded-full h-2">
+        <div
+          className="bg-teal-500 h-2 rounded-full transition-all"
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      <p className="text-zinc-500 text-xs mt-2">{pct}% complete</p>
+    </div>
+  )
+}
 
-      <main className="max-w-3xl mx-auto px-6 pt-16 pb-24 w-full flex-1">
-
-        {/* Page header */}
-        <div className="mb-10">
-          <p className="text-teal-400 text-xs font-semibold tracking-widest uppercase mb-3">AI-Proof Playbook · $79</p>
-          <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight leading-tight mb-4">
-            The AI-Proof Playbook
-          </h1>
-          <p className="text-zinc-400 text-lg">The Complete System for Becoming Your Company's AI Strategist</p>
-        </div>
-
-        {/* Welcome */}
-        <div className="border-l-4 border-teal-400 bg-zinc-900 rounded-r-xl px-6 py-5 mb-14">
-          <p className="text-zinc-300 text-sm leading-relaxed">
-            You're not here to use AI. You're here to think in systems. This is the difference between someone who saves time and someone who gets promoted for it.
-          </p>
-        </div>
-
-        {/* ═══════════════════════════════
-            PART 1: THE JOB AUDIT
-        ═══════════════════════════════ */}
-        <h2 className="text-teal-400 font-bold text-xl mt-8 mb-3">Part 1: The Job Audit Framework</h2>
-
-        {/* Step 1 */}
-        <p className="text-white font-semibold mt-6 mb-2 text-base">Step 1 — The Time Capture Exercise</p>
-        <p className="text-zinc-300 text-sm leading-relaxed mb-4">
-          For one full work week, track every task in 30-minute blocks. Not categories — actual tasks, actual time.
+function StartHereTab({ setActiveTab }) {
+  return (
+    <div>
+      <div className="border-l-4 border-teal-400 bg-zinc-900 rounded-r-xl px-6 py-5 mb-8">
+        <p className="text-white font-bold text-lg mb-2">You're not here to use AI.</p>
+        <p className="text-zinc-300 text-sm leading-relaxed">
+          You're here to get promoted for it. There's a difference between someone who saves time and someone who turns that saved time into career leverage. This playbook is the system for doing the second thing.
         </p>
+      </div>
+      <ProgressSummary />
+      <h3 className="text-white font-bold text-base mb-4">Your 5 Phases</h3>
+      <div className="space-y-3">
+        {[
+          {
+            title: 'Phase 1: Job Audit',
+            desc: 'Track every task for one week. Score each one 1–5 on the automation spectrum. Build your priority roadmap.',
+            tab: 'audit',
+          },
+          {
+            title: 'Phase 2: Custom Workflows',
+            desc: 'Master the prompt template, prompt chaining, and advanced multi-step Zapier automation.',
+            tab: 'workflows',
+          },
+          {
+            title: 'Phase 3: Your Portfolio',
+            desc: 'Build your Automation Tracker. Convert time saved into dollar value. This is your promotion evidence.',
+            tab: 'portfolio',
+          },
+          {
+            title: 'Phase 4: Promotion Play',
+            desc: 'Positioning framework, proposal email template, and the 4-part promotion conversation script.',
+            tab: 'promotion',
+          },
+          {
+            title: 'Phase 5: 30-Day Calendar',
+            desc: 'Day-by-day implementation plan from audit to promotion conversation.',
+            tab: 'calendar',
+          },
+        ].map(({ title, desc, tab }) => (
+          <div
+            key={tab}
+            className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 flex items-start justify-between gap-4"
+          >
+            <div>
+              <p className="text-white font-semibold text-sm mb-1">{title}</p>
+              <p className="text-zinc-400 text-xs leading-relaxed">{desc}</p>
+            </div>
+            <button
+              onClick={() => setActiveTab(tab)}
+              className="shrink-0 text-teal-400 text-xs font-bold border border-teal-500/40 px-3 py-1.5 rounded-lg hover:bg-teal-500/10 transition-colors whitespace-nowrap"
+            >
+              Go →
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
 
-        <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-5 py-5 mb-4">
-          <p className="text-teal-400 text-xs font-bold tracking-widest uppercase mb-3">How to do it</p>
-          <ol className="space-y-2.5">
+function JobAuditTab() {
+  return (
+    <div>
+      <WorkflowCard
+        title="The Job Audit Framework"
+        timeSaved="Identifies 40–60% of your week to reclaim"
+        tools="Timer + Spreadsheet"
+      >
+        <WorkflowStep stepNumber={1} title="Run the Time Capture Exercise" workflowId="playbook_audit">
+          <p className="text-zinc-300 text-sm leading-relaxed mb-3">
+            For one full work week, track every task in 30-minute blocks. Not categories — actual tasks, actual time.
+          </p>
+          <div className="space-y-1.5 mb-3">
             {[
               'Set a recurring 30-minute timer on your phone.',
-              <>Every time it goes off, write down what you just spent 30 minutes doing.<br /><span className="text-teal-300 font-mono text-xs">Format: [Time] | [Task] | [Category]</span><br /><span className="text-zinc-500 text-xs">Example: 9:00-9:30 | Responded to 6 client emails | Communication</span></>,
+              'Every time it goes off, write down what you just spent 30 minutes doing.',
               'Do this for 5 consecutive workdays. No estimating from memory.',
-              <>At the end of the week, categorize every entry into:<br /><span className="text-zinc-400">COMMUNICATION · DOCUMENTATION · DATA WORK · MEETINGS · CREATIVE · ADMIN · DEEP WORK</span></>,
+              'Categorize: COMMUNICATION · DOCUMENTATION · DATA WORK · MEETINGS · CREATIVE · ADMIN · DEEP WORK',
             ].map((item, i) => (
-              <li key={i} className="flex items-start gap-3 text-zinc-300 text-sm">
-                <span className="text-teal-400 font-bold shrink-0">{i + 1}.</span>
-                <span>{item}</span>
-              </li>
+              <p key={i} className="text-zinc-300 text-sm flex items-start gap-2">
+                <span className="text-teal-400 shrink-0 font-bold">{i + 1}.</span>
+                {item}
+              </p>
             ))}
-          </ol>
-        </div>
+          </div>
+          <PromptBlock
+            label="Time Log Format"
+            content={'[Time] | [Task] | [Category]\nExample: 9:00-9:30 | Responded to 6 client emails | Communication'}
+          />
+          <div className="mt-3 bg-teal-500/5 border border-teal-500/30 rounded-lg px-4 py-3">
+            <p className="text-zinc-300 text-sm">
+              Communication and Admin typically consume{' '}
+              <span className="text-white font-bold">40–50%</span> of the work week. Deep Work gets
+              less than 20%. The goal is to flip that ratio.
+            </p>
+          </div>
+        </WorkflowStep>
 
-        <div className="bg-teal-500/5 border border-teal-500/30 rounded-lg px-5 py-4 mb-6">
-          <p className="text-teal-400 text-xs font-bold tracking-widest uppercase mb-2">What you'll discover</p>
-          <p className="text-zinc-300 text-sm leading-relaxed">Communication and Admin typically consume 40–50% of the work week. Deep Work gets less than 20%. The goal is to flip that ratio.</p>
-        </div>
-
-        {/* Step 2 */}
-        <p className="text-white font-semibold mt-6 mb-2 text-base">Step 2 — Score Every Task on the Automation Spectrum</p>
-        <p className="text-zinc-300 text-sm leading-relaxed mb-4">For every task in your log, assign a score 1–5:</p>
-
-        <div className="overflow-x-auto mb-4">
-          <table className="w-full text-sm border-collapse">
-            <thead>
-              <tr className="border-b border-zinc-700">
-                <th className="text-teal-400 text-left py-2 pr-4 font-bold w-12">Score</th>
-                <th className="text-teal-400 text-left py-2 pr-4 font-bold">Label</th>
-                <th className="text-teal-400 text-left py-2 font-bold">Examples</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-800">
-              {[
-                ['5', 'Fully Automatable', 'Email sorting, data entry, meeting transcription, invoice extraction'],
-                ['4', 'Mostly Automatable', 'Email drafts, report generation, expense categorization'],
-                ['3', 'AI-Assisted', 'Client proposals, complaint responses, performance reviews'],
-                ['2', 'Human-Led, AI-Enhanced', 'Strategy docs, presentations, negotiation prep'],
-                ['1', 'Human Only', 'Coaching, conflict resolution, leadership decisions'],
-              ].map(([score, label, examples]) => (
-                <tr key={score}>
-                  <td className="py-2.5 pr-4 text-teal-400 font-bold">{score}</td>
-                  <td className="py-2.5 pr-4 text-white font-semibold">{label}</td>
-                  <td className="py-2.5 text-zinc-400">{examples}</td>
+        <WorkflowStep
+          stepNumber={2}
+          title="Score every task on the Automation Spectrum (1–5)"
+          workflowId="playbook_audit"
+        >
+          <div className="overflow-x-auto mb-3">
+            <table className="w-full text-sm border-collapse min-w-[380px]">
+              <thead>
+                <tr className="border-b border-zinc-700">
+                  <th className="text-teal-400 text-left py-2 pr-3 font-bold w-12">Score</th>
+                  <th className="text-teal-400 text-left py-2 pr-3 font-bold">Label</th>
+                  <th className="text-teal-400 text-left py-2 font-bold">Examples</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-zinc-800">
+                {[
+                  ['5', 'Fully Automatable', 'Email sorting, data entry, meeting transcription'],
+                  ['4', 'Mostly Automatable', 'Email drafts, report generation, expense categorization'],
+                  ['3', 'AI-Assisted', 'Client proposals, complaint responses, performance reviews'],
+                  ['2', 'Human-Led, AI-Enhanced', 'Strategy docs, presentations, negotiation prep'],
+                  ['1', 'Human Only', 'Coaching, conflict resolution, leadership decisions'],
+                ].map(([score, label, examples]) => (
+                  <tr key={score}>
+                    <td className="py-2 pr-3 text-teal-400 font-bold">{score}</td>
+                    <td className="py-2 pr-3 text-white font-semibold text-xs">{label}</td>
+                    <td className="py-2 text-zinc-400 text-xs">{examples}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <PromptBlock
+            label="Scoring Spreadsheet"
+            content={
+              'Columns: Task | Category | Hours/Week | Automation Score (1-5) | Potential Tool | Priority\nPriority Score = Automation Score × Hours Per Week\nHigher score = build this automation first.'
+            }
+          />
+        </WorkflowStep>
 
-        <p className="text-white font-semibold mt-4 mb-2">Build Your Scoring Spreadsheet</p>
-        <pre className="bg-zinc-900 border border-zinc-700 rounded-lg p-4 font-mono text-sm text-teal-300 whitespace-pre-wrap overflow-x-auto mb-3">{`Columns: Task | Category | Hours/Week | Automation Score (1-5) | Potential Tool | Priority`}</pre>
-        <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-5 py-4 mb-6">
-          <p className="text-teal-400 text-xs font-bold tracking-widest uppercase mb-2">The Priority Formula</p>
-          <p className="text-white font-mono text-sm">Priority Score = Automation Score × Hours Per Week</p>
-          <p className="text-zinc-400 text-xs mt-1">Higher score = build this automation first.</p>
-        </div>
-
-        {/* Step 3 */}
-        <p className="text-white font-semibold mt-6 mb-2 text-base">Step 3 — Build Your Automation Roadmap</p>
-        <div className="space-y-3 mb-4">
-          {[
-            { wave: 'Wave 1 (Week 1–2)', label: 'Quick Wins', desc: 'Pick top 3–5 tasks that score 4–5 AND take less than 30 min to automate.' },
-            { wave: 'Wave 2 (Week 2–3)', label: 'High-Impact Builds', desc: 'Top 3 tasks that score 3–4 AND take the most hours/week. 30–60 min each to build.' },
-            { wave: 'Wave 3 (Week 3–4)', label: 'System Integration', desc: 'Connect individual automations. When automations talk to each other, savings compound exponentially.' },
-          ].map((w) => (
-            <div key={w.wave} className="bg-zinc-900 border border-zinc-700 rounded-lg px-5 py-4">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-teal-400 font-bold text-sm">{w.wave}:</span>
-                <span className="text-white font-semibold text-sm">{w.label}</span>
+        <WorkflowStep stepNumber={3} title="Build your Automation Roadmap" workflowId="playbook_audit">
+          <div className="space-y-2 mb-3">
+            {[
+              {
+                wave: 'Wave 1 (Week 1–2)',
+                label: 'Quick Wins',
+                desc: 'Pick top 3–5 tasks that score 4–5 AND take less than 30 min to automate.',
+              },
+              {
+                wave: 'Wave 2 (Week 2–3)',
+                label: 'High-Impact Builds',
+                desc: 'Top 3 tasks that score 3–4 AND take the most hours/week. 30–60 min each to build.',
+              },
+              {
+                wave: 'Wave 3 (Week 3–4)',
+                label: 'System Integration',
+                desc: 'Connect individual automations. When they talk to each other, savings compound exponentially.',
+              },
+            ].map((w) => (
+              <div key={w.wave} className="bg-zinc-800/50 border border-zinc-700 rounded-lg px-4 py-3">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-teal-400 font-bold text-xs">{w.wave}:</span>
+                  <span className="text-white font-semibold text-xs">{w.label}</span>
+                </div>
+                <p className="text-zinc-300 text-xs">{w.desc}</p>
               </div>
-              <p className="text-zinc-300 text-sm">{w.desc}</p>
-            </div>
-          ))}
-        </div>
-        <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-5 py-4 mb-8">
-          <p className="text-teal-400 text-xs font-bold tracking-widest uppercase mb-2">Important</p>
-          <p className="text-zinc-300 text-sm leading-relaxed">Document everything as you build. Your documentation becomes career leverage.</p>
-        </div>
+            ))}
+          </div>
+          <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg px-4 py-3">
+            <p className="text-zinc-300 text-sm">
+              <span className="text-white font-semibold">Important:</span> Document everything as you
+              build. Your documentation becomes career leverage.
+            </p>
+          </div>
+        </WorkflowStep>
+      </WorkflowCard>
+    </div>
+  )
+}
 
-        {/* ═══════════════════════════════
-            PART 2: CUSTOM WORKFLOWS
-        ═══════════════════════════════ */}
-        <h2 className="text-teal-400 font-bold text-xl mt-12 mb-3">Part 2: Building Custom Workflows from Scratch</h2>
-
-        <p className="text-white font-semibold mt-6 mb-3 text-base">The Anatomy of a Perfect Prompt</p>
-        <p className="text-zinc-300 text-sm leading-relaxed mb-4">5 components. Miss any one and output degrades.</p>
+function CustomWorkflowsTab() {
+  return (
+    <div>
+      <WorkflowCard title="The Master Prompt Template" tools="Claude / ChatGPT">
+        <p className="text-zinc-400 text-sm mb-4">5 components. Miss any one and output degrades.</p>
         <div className="space-y-2 mb-5">
           {[
-            ['ROLE', 'Tell AI who it is.', 'Weak: "Write me an email." Strong: "You are a senior account manager at a B2B services company."'],
-            ['CONTEXT', 'Give AI all relevant background.', 'Include company, client, situation, history — whatever shapes the output.'],
-            ['TASK', 'Be specific about what you want done.', 'Not "write a summary" — "write a 3-sentence summary structured as: situation, complication, resolution."'],
-            ['CONSTRAINTS', 'Length, tone, format, exclusions.', '"Under 150 words. Professional tone. No buzzwords. No bullet points."'],
-            ['OUTPUT FORMAT', 'Show AI what the result should look like.', 'Paste an example, or describe it explicitly.'],
+            [
+              'ROLE',
+              'Tell AI who it is.',
+              'Weak: "Write me an email." Strong: "You are a senior account manager at a B2B services company."',
+            ],
+            [
+              'CONTEXT',
+              'Give AI all relevant background.',
+              'Include company, client, situation, history — whatever shapes the output.',
+            ],
+            [
+              'TASK',
+              'Be specific about what you want done.',
+              '"Write a 3-sentence summary structured as: situation, complication, resolution." Not just "write a summary."',
+            ],
+            [
+              'CONSTRAINTS',
+              'Length, tone, format, exclusions.',
+              '"Under 150 words. Professional tone. No buzzwords. No bullet points."',
+            ],
+            [
+              'OUTPUT FORMAT',
+              'Show AI what the result should look like.',
+              'Paste an example, or describe it explicitly.',
+            ],
           ].map(([comp, def, example]) => (
-            <div key={comp} className="bg-zinc-900 border border-zinc-700 rounded-lg px-5 py-4">
-              <p className="text-teal-400 text-xs font-bold tracking-widest uppercase mb-1">{comp}</p>
+            <div key={comp} className="bg-zinc-800/50 border border-zinc-700 rounded-lg px-4 py-3">
+              <p className="text-teal-400 text-xs font-bold tracking-widest uppercase mb-0.5">{comp}</p>
               <p className="text-white text-sm font-semibold mb-0.5">{def}</p>
               <p className="text-zinc-400 text-xs">{example}</p>
             </div>
           ))}
         </div>
+        <WorkflowStep
+          stepNumber={1}
+          title="Write your first master prompt using this template"
+          workflowId="playbook_workflows"
+        >
+          <PromptBlock
+            label="Master Prompt Template"
+            content={`"You are a [ROLE]. [CONTEXT about the situation]. [SPECIFIC TASK you want completed]. [CONSTRAINTS on length, tone, format, exclusions]. Structure the output as: [OUTPUT FORMAT]."`}
+          />
+        </WorkflowStep>
+      </WorkflowCard>
 
-        <p className="text-white font-semibold mt-4 mb-2">The Master Prompt Template</p>
-        <pre className="bg-zinc-900 border border-zinc-700 rounded-lg p-4 font-mono text-sm text-teal-300 whitespace-pre-wrap overflow-x-auto mb-8">{`"You are a [ROLE]. [CONTEXT about the situation]. [SPECIFIC TASK you want completed]. [CONSTRAINTS on length, tone, format, exclusions]. Structure the output as: [OUTPUT FORMAT]."`}</pre>
-
-        <p className="text-white font-semibold mt-6 mb-3 text-base">Prompt Chaining: When One Prompt Isn't Enough</p>
-        <p className="text-zinc-300 text-sm leading-relaxed mb-4">Example — Raw client feedback → Strategy document:</p>
-        <pre className="bg-zinc-900 border border-zinc-700 rounded-lg p-4 font-mono text-sm text-teal-300 whitespace-pre-wrap overflow-x-auto mb-4">{`PROMPT 1 (Extract):
-"Here are raw notes from 5 client feedback calls:
-[paste notes]
-Extract and organize into:
-1. Common themes (mentioned by 2+ clients)
-2. Unique concerns (mentioned by 1 client)
-3. Specific feature requests
-4. Sentiment per client"
-
-PROMPT 2 (Analyze):
-"Based on this organized feedback:
-[paste Prompt 1 output]
-Identify:
-1. Top 3 issues by frequency and severity
-2. Quick fixes vs. structural problems
-3. Contradictions between clients
-4. The one change that improves satisfaction most"
-
-PROMPT 3 (Deliver):
-"Based on this analysis:
-[paste Prompt 2 output]
-Write a Client Feedback Strategy Brief for leadership. Include:
-1. Executive summary (one paragraph)
-2. Priority matrix (top issues by impact and effort)
-3. Recommended actions for next quarter
-4. Risks if we don't act
-Tone: data-driven, concise, suitable for a VP audience."`}</pre>
-
-        <p className="text-white font-semibold mt-4 mb-2">Use Prompt Chaining When:</p>
-        <ul className="space-y-1 mb-4">
-          {['The task has multiple distinct phases', 'Input data is messy', 'You need different perspectives at different stages', 'Single prompt is getting mediocre results'].map((item) => (
-            <li key={item} className="flex items-start gap-2 text-zinc-300 text-sm"><span className="text-teal-400 shrink-0">→</span>{item}</li>
-          ))}
-        </ul>
-
-        <p className="text-white font-semibold mt-6 mb-3 text-base">Advanced Zapier: Multi-Step Automations</p>
-        <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-5 py-4 mb-4">
-          <p className="text-teal-400 text-xs font-bold tracking-widest uppercase mb-3">Multi-Step Zap Architecture</p>
-          <div className="flex flex-wrap items-center gap-2 text-sm font-mono">
-            {['TRIGGER', 'Process data', 'Transform/enrich', 'Make a decision', 'Take action', 'Notify'].map((step, i, arr) => (
-              <>
-                <span key={step} className="text-teal-300 bg-zinc-800 border border-zinc-700 px-2 py-1 rounded text-xs">{step}</span>
-                {i < arr.length - 1 && <span key={`arrow-${i}`} className="text-zinc-600">→</span>}
-              </>
-            ))}
-          </div>
-        </div>
-        <p className="text-white font-semibold mt-4 mb-2">Conditional Logic (Paths and Filters)</p>
-        <div className="space-y-1.5 mb-8">
-          {[
-            'IF email contains "urgent" → Route to priority inbox AND notify via Slack',
-            'IF invoice amount > $5,000 → Require manager approval',
-            'IF lead source = "website" → Add to sequence A; IF "referral" → Add to sequence B',
-          ].map((rule) => (
-            <p key={rule} className="text-zinc-300 text-sm font-mono bg-zinc-900 border border-zinc-700 rounded px-4 py-2">{rule}</p>
-          ))}
-        </div>
-
-        {/* ═══════════════════════════════
-            PART 3: EFFICIENCY PORTFOLIO
-        ═══════════════════════════════ */}
-        <h2 className="text-teal-400 font-bold text-xl mt-12 mb-3">Part 3: The Efficiency Portfolio</h2>
-
-        <p className="text-white font-semibold mt-4 mb-2">Build Your Automation Tracker</p>
-        <p className="text-zinc-300 text-sm leading-relaxed mb-3">Create a spreadsheet: <span className="text-white font-semibold">"My Automation Portfolio"</span></p>
-        <div className="overflow-x-auto mb-5">
-          <table className="w-full text-sm border-collapse min-w-[600px]">
-            <thead>
-              <tr className="border-b border-zinc-700">
-                {['Col', 'Field', 'Notes'].map((h) => (
-                  <th key={h} className="text-teal-400 text-left py-2 pr-4 font-bold">{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-zinc-800">
-              {[
-                ['A', 'Automation Name', 'Descriptive: "Client Email Follow-Up Draft"'],
-                ['B', 'Department', 'Client / Finance / Marketing / HR / Projects'],
-                ['C', 'Date Built', 'For tracking growth over time'],
-                ['D', 'Tools Used', 'ChatGPT + Zapier + Gmail'],
-                ['E', 'Time Before (min)', 'How long the task took manually'],
-                ['F', 'Time After (min)', 'How long it takes now'],
-                ['G', 'Frequency (×/week)', 'How often you run this task'],
-                ['H', 'Weekly Saved', '(E−F) × G'],
-                ['I', 'Monthly Saved', 'H × 4.3'],
-                ['J', 'Status', 'Active / Paused / Needs Update'],
-              ].map(([col, field, note]) => (
-                <tr key={col}>
-                  <td className="py-2 pr-4 text-teal-400 font-mono font-bold">{col}</td>
-                  <td className="py-2 pr-4 text-white font-semibold">{field}</td>
-                  <td className="py-2 text-zinc-400 text-xs">{note}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        <p className="text-white font-semibold mt-4 mb-2">Converting Time to Dollar Value</p>
-        <div className="bg-zinc-900 border border-zinc-700 rounded-lg px-5 py-5 mb-4">
-          <p className="text-zinc-300 text-sm mb-3">Your hourly rate = <span className="text-teal-300 font-mono">annual salary ÷ 2,080</span></p>
-          <div className="space-y-2">
-            {[
-              ['$60K/year salary', '~$29/hr'],
-              ['Save 10 hrs/month', '$290/month = $3,480/year'],
-              ['Save 20 hrs/month', '$580/month = $6,960/year'],
-            ].map(([input, result]) => (
-              <div key={input} className="flex justify-between items-center text-sm border-b border-zinc-800 pb-2">
-                <span className="text-zinc-300">{input}</span>
-                <span className="text-teal-400 font-bold">{result}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <div className="bg-teal-500/5 border border-teal-500/30 rounded-lg px-5 py-4 mb-8">
-          <p className="text-zinc-300 text-sm leading-relaxed">Leadership thinks in dollars, not minutes. This is the math that gets you promoted.</p>
-        </div>
-
-        {/* ═══════════════════════════════
-            PART 4: THE PROMOTION PLAY
-        ═══════════════════════════════ */}
-        <h2 className="text-teal-400 font-bold text-xl mt-12 mb-3">Part 4: The Promotion Play</h2>
-
-        <p className="text-white font-semibold mt-4 mb-3">Positioning Yourself as the AI Person</p>
-        <div className="space-y-3 mb-5">
-          {[
-            ['Start with results, not technology', 'Never lead with "I\'ve been using AI tools." Lead with "I\'ve reduced report generation time by 75%."'],
-            ['Share your wins publicly but subtly', 'Mention time savings in meetings. Let the number do the positioning.'],
-            ['Offer to help one colleague', 'Do this 3 times. Each one is a testimonial and a referral waiting to happen.'],
-            ['Propose an internal AI Efficiency initiative', 'Turn a personal practice into a departmental initiative. That\'s leadership.'],
-          ].map(([title, desc], i) => (
-            <div key={title} className="flex items-start gap-3 bg-zinc-900 border border-zinc-700 rounded-lg px-5 py-4">
-              <span className="text-teal-400 font-bold shrink-0 text-sm">{i + 1}.</span>
-              <div>
-                <p className="text-white font-semibold text-sm mb-1">{title}</p>
-                <p className="text-zinc-400 text-sm">{desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <p className="text-white font-semibold mt-6 mb-2">Proposal Email Template</p>
-        <pre className="bg-zinc-900 border border-zinc-700 rounded-lg p-4 font-mono text-sm text-teal-300 whitespace-pre-wrap overflow-x-auto mb-6">{`Subject: Proposal: AI Efficiency Pilot
-
-"Over the past [X weeks], I've been building AI-powered workflows that have saved our team approximately [X hours/month]. [Colleague 1] and [Colleague 2] have seen similar results after I helped them set up systems.
-
-I'd like to propose a small pilot: I'll spend [X hours/week] helping [X team members] automate their top 3 time-wasters over the next 30 days. I'll track and report results.
-
-If successful, this could save the department [estimated hours/dollars] annually.
-
-Would you be open to discussing this in our next 1:1?"`}</pre>
-
-        <p className="text-white font-semibold mt-6 mb-3">The Promotion Conversation — 4-Part Framework</p>
-        <div className="space-y-3 mb-4">
-          {[
-            ['Open with business impact', '"Over the past 90 days, I\'ve implemented systems that have saved our team [X hours/month]..."'],
-            ['Connect to company priorities', 'Link your work to a current initiative, goal, or pain point leadership is already focused on.'],
-            ['Propose the expanded role', 'Be specific. "I\'d like to take on X responsibility" is better than "I\'d like a promotion."'],
-            ['Make it easy to say yes', 'Propose a 90-day pilot. Lower the risk. Make the decision obvious.'],
-          ].map(([step, desc], i) => (
-            <div key={step} className="flex items-start gap-3 bg-zinc-900 border border-zinc-700 rounded-lg px-5 py-4">
-              <span className="text-teal-400 font-bold shrink-0 text-sm">{i + 1}.</span>
-              <div>
-                <p className="text-white font-semibold text-sm mb-1">{step}</p>
-                <p className="text-zinc-400 text-sm">{desc}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="bg-teal-500/5 border border-teal-500/30 rounded-lg px-5 py-4 mb-8">
-          <p className="text-zinc-300 text-sm leading-relaxed">
-            <span className="text-white font-semibold">Key insight:</span> You're not asking for a promotion because you've been a good employee. You're presenting a business case.
+      <WorkflowCard title="Prompt Chaining: When One Prompt Isn't Enough" tools="Claude / ChatGPT">
+        <p className="text-zinc-400 text-sm mb-4">
+          Use chaining when: the task has multiple distinct phases, input data is messy, or a single
+          prompt keeps giving mediocre results.
+        </p>
+        <WorkflowStep stepNumber={2} title="Build a 3-part prompt chain" workflowId="playbook_workflows">
+          <p className="text-zinc-400 text-xs mb-3">
+            Example — Raw client feedback → Leadership strategy brief
           </p>
-        </div>
+          <div className="space-y-3">
+            <PromptBlock
+              label="Step 1 — Extract"
+              content={`"Here are raw notes from 5 client feedback calls:\n[paste notes]\nExtract and organize into:\n1. Common themes (mentioned by 2+ clients)\n2. Unique concerns (mentioned by 1 client)\n3. Specific feature requests\n4. Sentiment per client"`}
+            />
+            <PromptBlock
+              label="Step 2 — Analyze"
+              content={`"Based on this organized feedback:\n[paste Step 1 output]\nIdentify:\n1. Top 3 issues by frequency and severity\n2. Quick fixes vs. structural problems\n3. Contradictions between clients\n4. The one change that improves satisfaction most"`}
+            />
+            <PromptBlock
+              label="Step 3 — Deliver"
+              content={`"Based on this analysis:\n[paste Step 2 output]\nWrite a Client Feedback Strategy Brief for leadership. Include:\n1. Executive summary (one paragraph)\n2. Priority matrix (top issues by impact and effort)\n3. Recommended actions for next quarter\n4. Risks if we don't act\nTone: data-driven, concise, suitable for a VP audience."`}
+            />
+          </div>
+        </WorkflowStep>
+      </WorkflowCard>
 
-        {/* ═══════════════════════════════
-            PART 5: 30-DAY CALENDAR
-        ═══════════════════════════════ */}
-        <h2 className="text-teal-400 font-bold text-xl mt-12 mb-3">Part 5: 30-Day Implementation Calendar</h2>
+      <WorkflowCard title="Advanced Zapier: Multi-Step Automations" tools="Zapier">
+        <WorkflowStep
+          stepNumber={3}
+          title="Build a multi-step Zap with conditional logic"
+          workflowId="playbook_workflows"
+        >
+          <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg px-4 py-3 mb-4">
+            <p className="text-teal-400 text-xs font-bold tracking-widest uppercase mb-2">
+              Multi-Step Zap Architecture
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              {['TRIGGER', 'Process', 'Transform', 'Decision', 'Action', 'Notify'].map((step, i, arr) => (
+                <span key={step} className="flex items-center gap-2">
+                  <span className="text-teal-300 bg-zinc-900 border border-zinc-700 px-2 py-1 rounded text-xs font-mono">
+                    {step}
+                  </span>
+                  {i < arr.length - 1 && <span className="text-zinc-600 text-xs">→</span>}
+                </span>
+              ))}
+            </div>
+          </div>
+          <p className="text-white font-semibold text-sm mb-2">Conditional Logic Examples</p>
+          <div className="space-y-1.5">
+            {[
+              'IF email contains "urgent" → Route to priority inbox AND notify via Slack',
+              'IF invoice amount > $5,000 → Require manager approval',
+              'IF lead source = "website" → Add to sequence A; IF "referral" → Add to sequence B',
+            ].map((rule) => (
+              <p
+                key={rule}
+                className="text-zinc-300 text-xs font-mono bg-zinc-900 border border-zinc-700 rounded px-3 py-2"
+              >
+                {rule}
+              </p>
+            ))}
+          </div>
+        </WorkflowStep>
+      </WorkflowCard>
+    </div>
+  )
+}
 
-        {[
-          {
-            week: 'Week 1 — Foundation (Days 1–7)',
-            days: [
-              ['Day 1', 'Set 30-min timer. Start logging every task.'],
-              ['Days 2–5', 'Keep logging. No skipping. No estimating.'],
-              ['Day 6', 'Score every task 1–5. Calculate priority scores. Build Automation Roadmap.'],
-              ['Day 7', 'Create Efficiency Portfolio spreadsheet.'],
-            ],
-          },
-          {
-            week: 'Week 2 — Quick Wins (Days 8–14)',
-            days: [
-              ['Days 8–9', 'Build Wave 1 automations (3–5 quick wins)'],
-              ['Days 10–11', 'Refine and stabilize.'],
-              ['Day 12', 'First Portfolio Review. Calculate total weekly time saved + dollar equivalent.'],
-              ['Days 13–14', 'Help one colleague automate one task.'],
-            ],
-          },
-          {
-            week: 'Week 3 — High-Impact Builds (Days 15–21)',
-            days: [
-              ['Days 15–17', 'Build Wave 2 automations (3 high-impact, custom prompts)'],
-              ['Days 18–19', 'Build your first prompt chain.'],
-              ['Day 20', 'Second Portfolio Review. Should be at 5–10+ hours/month saved.'],
-              ['Day 21', 'Help Colleague #2. Different department.'],
-            ],
-          },
-          {
-            week: 'Week 4 — Integration & Presentation (Days 22–30)',
-            days: [
-              ['Days 22–24', 'Wave 3 — connect automations into systems with multi-step Zaps'],
-              ['Days 25–26', 'Final Portfolio Review.'],
-              ['Days 27–28', 'Prepare promotion case.'],
-              ['Days 29–30', 'Have the conversation.'],
-            ],
-          },
-        ].map((w) => (
-          <div key={w.week} className="mb-5">
-            <p className="text-white font-bold text-sm mb-2">{w.week}</p>
-            <div className="bg-zinc-900 border border-zinc-700 rounded-lg overflow-hidden">
-              {w.days.map(([day, task], i, arr) => (
-                <div key={day} className={`flex gap-4 px-5 py-3 text-sm ${i < arr.length - 1 ? 'border-b border-zinc-800' : ''}`}>
-                  <span className="text-teal-400 font-semibold shrink-0 w-20">{day}</span>
-                  <span className="text-zinc-300">{task}</span>
+function PortfolioTab() {
+  return (
+    <div>
+      <WorkflowCard
+        title="The Efficiency Portfolio"
+        timeSaved="Builds your promotion case"
+        tools="Google Sheets"
+      >
+        <WorkflowStep
+          stepNumber={1}
+          title="Create your Automation Tracker spreadsheet"
+          workflowId="playbook_portfolio"
+        >
+          <p className="text-zinc-300 text-sm leading-relaxed mb-3">
+            Name it <span className="text-white font-semibold">"My Automation Portfolio"</span>
+          </p>
+          <div className="overflow-x-auto mb-3">
+            <table className="w-full text-sm border-collapse min-w-[480px]">
+              <thead>
+                <tr className="border-b border-zinc-700">
+                  {['Col', 'Field', 'Notes'].map((h) => (
+                    <th key={h} className="text-teal-400 text-left py-2 pr-3 font-bold">
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-800">
+                {[
+                  ['A', 'Automation Name', 'Descriptive: "Client Email Follow-Up Draft"'],
+                  ['B', 'Department', 'Client / Finance / Marketing / HR / Projects'],
+                  ['C', 'Date Built', 'For tracking growth over time'],
+                  ['D', 'Tools Used', 'ChatGPT + Zapier + Gmail'],
+                  ['E', 'Time Before (min)', 'How long the task took manually'],
+                  ['F', 'Time After (min)', 'How long it takes now'],
+                  ['G', 'Frequency (×/week)', 'How often you run this task'],
+                  ['H', 'Weekly Saved', '(E−F) × G'],
+                  ['I', 'Monthly Saved', 'H × 4.3'],
+                  ['J', 'Status', 'Active / Paused / Needs Update'],
+                ].map(([col, field, note]) => (
+                  <tr key={col}>
+                    <td className="py-2 pr-3 text-teal-400 font-mono font-bold">{col}</td>
+                    <td className="py-2 pr-3 text-white font-semibold text-xs">{field}</td>
+                    <td className="py-2 text-zinc-400 text-xs">{note}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <PromptBlock
+            label="Savings Formula"
+            content={
+              'Weekly Saved = (Time Before − Time After) × Frequency per week\nMonthly Saved = Weekly Saved × 4.3'
+            }
+          />
+        </WorkflowStep>
+
+        <WorkflowStep
+          stepNumber={2}
+          title="Convert time saved into dollar value"
+          workflowId="playbook_portfolio"
+        >
+          <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg px-4 py-4 mb-3">
+            <p className="text-zinc-300 text-sm mb-3">
+              Your hourly rate ={' '}
+              <span className="text-teal-300 font-mono">annual salary ÷ 2,080</span>
+            </p>
+            <div className="space-y-2">
+              {[
+                ['$60K/year salary', '~$29/hr'],
+                ['Save 10 hrs/month', '$290/month = $3,480/year'],
+                ['Save 20 hrs/month', '$580/month = $6,960/year'],
+              ].map(([input, result]) => (
+                <div
+                  key={input}
+                  className="flex justify-between items-center border-b border-zinc-700 pb-2"
+                >
+                  <span className="text-zinc-300 text-xs">{input}</span>
+                  <span className="text-teal-400 font-bold text-xs">{result}</span>
                 </div>
               ))}
             </div>
           </div>
-        ))}
+          <div className="bg-teal-500/5 border border-teal-500/30 rounded-lg px-4 py-3">
+            <p className="text-zinc-300 text-sm">
+              Leadership thinks in dollars, not minutes. This is the math that gets you promoted.
+            </p>
+          </div>
+        </WorkflowStep>
+      </WorkflowCard>
+    </div>
+  )
+}
 
-        {/* Upsell */}
-        <div className="mt-12 p-6 border border-teal-500/30 rounded-xl bg-teal-500/5">
-          <h2 className="text-white text-xl font-bold mb-2">Ready to sell this?</h2>
-          <p className="text-zinc-300 text-sm leading-relaxed mb-1">
-            The Automation Consultant Kit teaches you to package these exact skills into a service businesses will pay $50–150/hr for. Client templates, pricing frameworks, discovery call scripts, and a 30-day plan to land your first paying client.
+function PromotionPlayTab() {
+  return (
+    <div>
+      <WorkflowCard title="Positioning Yourself as the AI Person">
+        <WorkflowStep
+          stepNumber={1}
+          title="Build your positioning and send the proposal"
+          workflowId="playbook_promotion"
+        >
+          <div className="space-y-2 mb-4">
+            {[
+              [
+                'Start with results, not technology',
+                'Never lead with "I\'ve been using AI tools." Lead with "I\'ve reduced report generation time by 75%."',
+              ],
+              [
+                'Share your wins publicly but subtly',
+                'Mention time savings in meetings. Let the number do the positioning.',
+              ],
+              [
+                'Offer to help one colleague',
+                'Do this 3 times. Each one is a testimonial and a referral waiting to happen.',
+              ],
+              [
+                'Propose an internal AI Efficiency initiative',
+                'Turn a personal practice into a departmental initiative. That\'s leadership.',
+              ],
+            ].map(([title, desc], i) => (
+              <div
+                key={title}
+                className="flex items-start gap-3 bg-zinc-800/50 border border-zinc-700 rounded-lg px-4 py-3"
+              >
+                <span className="text-teal-400 font-bold shrink-0 text-sm">{i + 1}.</span>
+                <div>
+                  <p className="text-white font-semibold text-sm mb-0.5">{title}</p>
+                  <p className="text-zinc-400 text-xs">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <PromptBlock
+            label="Proposal Email Template"
+            content={`Subject: Proposal: AI Efficiency Pilot\n\n"Over the past [X weeks], I've been building AI-powered workflows that have saved our team approximately [X hours/month]. [Colleague 1] and [Colleague 2] have seen similar results after I helped them set up systems.\n\nI'd like to propose a small pilot: I'll spend [X hours/week] helping [X team members] automate their top 3 time-wasters over the next 30 days. I'll track and report results.\n\nIf successful, this could save the department [estimated hours/dollars] annually.\n\nWould you be open to discussing this in our next 1:1?"`}
+          />
+        </WorkflowStep>
+
+        <WorkflowStep
+          stepNumber={2}
+          title="Run the promotion conversation"
+          workflowId="playbook_promotion"
+        >
+          <p className="text-zinc-400 text-sm leading-relaxed mb-3">
+            You're presenting a business case, not asking for a favor. Use this 4-part framework.
           </p>
-          <a
-            href="https://getfluxe.gumroad.com/l/AutomationConsultant"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-4 inline-block bg-teal-500 hover:bg-teal-400 text-black font-bold px-6 py-3 rounded-lg transition-colors no-underline"
-          >
-            Get the Consultant Kit — $149
-          </a>
-        </div>
+          <div className="space-y-2 mb-4">
+            {[
+              [
+                'Open with business impact',
+                '"Over the past 90 days, I\'ve implemented systems that have saved our team [X hours/month]..."',
+              ],
+              [
+                'Connect to company priorities',
+                'Link your work to a current initiative, goal, or pain point leadership is already focused on.',
+              ],
+              [
+                'Propose the expanded role',
+                '"I\'d like to take on X responsibility" is better than "I\'d like a promotion."',
+              ],
+              [
+                'Make it easy to say yes',
+                'Propose a 90-day pilot. Lower the risk. Make the decision obvious.',
+              ],
+            ].map(([step, desc], i) => (
+              <div
+                key={step}
+                className="flex items-start gap-3 bg-zinc-800/50 border border-zinc-700 rounded-lg px-4 py-3"
+              >
+                <span className="text-teal-400 font-bold shrink-0 text-sm">{i + 1}.</span>
+                <div>
+                  <p className="text-white font-semibold text-sm mb-0.5">{step}</p>
+                  <p className="text-zinc-400 text-xs">{desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="bg-teal-500/5 border border-teal-500/30 rounded-lg px-4 py-3">
+            <p className="text-zinc-300 text-sm">
+              <span className="text-white font-semibold">Key insight:</span> You're not asking for a
+              promotion because you've been a good employee. You're presenting a business case.
+            </p>
+          </div>
+        </WorkflowStep>
+      </WorkflowCard>
+    </div>
+  )
+}
 
-      </main>
+function CalendarTab() {
+  return (
+    <div>
+      {CALENDAR_WEEKS.map((w) => (
+        <WorkflowCard key={w.id} title={w.title} id={w.id}>
+          <WorkflowStep stepNumber={w.step} title={w.subtitle} workflowId="playbook_calendar">
+            <div className="grid grid-cols-2 sm:grid-cols-7 gap-2">
+              {w.days.map((d) => (
+                <div key={d.day} className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-2.5">
+                  <p className="text-teal-400 text-xs font-bold mb-1">{d.day}</p>
+                  <p className="text-zinc-300 text-xs leading-relaxed">{d.task}</p>
+                </div>
+              ))}
+            </div>
+          </WorkflowStep>
+        </WorkflowCard>
+      ))}
 
-      <footer style={{ borderTop: `1px solid ${BORDER}` }} className="py-8 text-center">
+      <div className="mt-8 p-6 border border-teal-500/30 rounded-xl bg-teal-500/5">
+        <h2 className="text-white text-xl font-bold mb-2">Ready to sell this?</h2>
+        <p className="text-zinc-300 text-sm leading-relaxed mb-4">
+          The Automation Consultant Kit teaches you to package these exact skills into a service
+          businesses will pay $50–150/hr for. Client templates, pricing frameworks, discovery call
+          scripts, and a 30-day plan to land your first paying client.
+        </p>
+        <a
+          href="https://getfluxe.gumroad.com/l/AutomationConsultant"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-block bg-teal-500 hover:bg-teal-400 text-black font-bold px-6 py-3 rounded-lg transition-colors no-underline"
+        >
+          Get the Consultant Kit — $149
+        </a>
+      </div>
+    </div>
+  )
+}
+
+export default function Playbook() {
+  const [activeTab, setActiveTab] = useState('start')
+
+  const tabs = [
+    { id: 'start', label: 'Start Here', content: <StartHereTab setActiveTab={setActiveTab} /> },
+    { id: 'audit', label: 'Job Audit', content: <JobAuditTab /> },
+    { id: 'workflows', label: 'Custom Workflows', content: <CustomWorkflowsTab /> },
+    { id: 'portfolio', label: 'Your Portfolio', content: <PortfolioTab /> },
+    { id: 'promotion', label: 'Promotion Play', content: <PromotionPlayTab /> },
+    { id: 'calendar', label: '30-Day Calendar', content: <CalendarTab /> },
+    { id: 'prompts', label: 'Prompt Library', content: <PromptLibrary prompts={ALL_PROMPTS} /> },
+  ]
+
+  return (
+    <div className="min-h-screen text-white flex flex-col" style={{ backgroundColor: '#111118' }}>
+      <Navbar />
+      <TabDashboard
+        tabs={tabs}
+        pageTitle="The AI-Proof Playbook"
+        pageSubtitle="The Complete System for Becoming Your Company's AI Strategist"
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
+      <footer className="py-8 text-center border-t border-zinc-800">
         <p className="text-zinc-500 text-sm">© 2026 The Restack. Built for the ones who didn't wait.</p>
       </footer>
     </div>
