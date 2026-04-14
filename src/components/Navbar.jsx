@@ -1,6 +1,9 @@
 import { Link } from 'react-router-dom'
+import { useAuth } from '../hooks/useAuth'
 
 export default function Navbar() {
+  const { user, signOut } = useAuth()
+
   return (
     <nav style={{ backgroundColor: '#111118', borderBottom: '1px solid #1a1a24' }} className="sticky top-0 z-50 px-6 py-4">
       <div className="max-w-5xl mx-auto flex items-center justify-between">
@@ -20,9 +23,24 @@ export default function Navbar() {
           <Link to="/operator" className="text-sm text-gray-400 hover:text-white transition-colors no-underline hidden sm:block">
             Operator
           </Link>
-          <Link to="/profile" className="text-sm text-gray-400 hover:text-white transition-colors no-underline hidden sm:block">
-            Profile
-          </Link>
+          {user ? (
+            <>
+              <Link to="/profile" className="text-sm text-gray-400 hover:text-white transition-colors no-underline hidden sm:block">
+                Profile
+              </Link>
+              <button
+                onClick={signOut}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                className="text-sm text-gray-400 hover:text-white transition-colors hidden sm:block"
+              >
+                Sign out
+              </button>
+            </>
+          ) : (
+            <Link to="/login" className="text-sm text-gray-400 hover:text-white transition-colors no-underline hidden sm:block">
+              Sign in
+            </Link>
+          )}
           <a
             href="https://getfluxe.gumroad.com/l/FlowState"
             target="_blank"

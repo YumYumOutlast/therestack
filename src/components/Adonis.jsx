@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
+import { useAuth } from '../hooks/useAuth'
 
 const SYSTEM_PROMPT = `You are Adonis — the AI mentor inside The Restack, an alternative education platform teaching AI automation skills. You are direct, warm, and specific. You do not give generic advice.
 
@@ -48,7 +49,7 @@ const OPENING_MESSAGE = {
     "Hey. I'm Adonis — your mentor inside The Restack. I know every workflow in your stack. Tell me where you're stuck, what you've completed, or ask me what to do next. I'll give you a straight answer.",
 }
 
-function getProgressContext() {
+function getProgressContext(tier) {
   const completed = []
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i)
@@ -56,8 +57,11 @@ function getProgressContext() {
       completed.push(key.replace('restack_', '').replace(/_/g, ' '))
     }
   }
-  if (completed.length === 0) return 'The user has not completed any steps yet.'
-  return `The user has completed these steps: ${completed.join(', ')}.`
+  let context = ''
+  if (tier) context += `The user's current tier is: ${tier}.\n`
+  if (completed.length === 0) context += 'The user has not completed any steps yet.'
+  else context += `The user has completed these steps: ${completed.join(', ')}.`
+  return context
 }
 
 function TypingIndicator() {
@@ -77,6 +81,7 @@ function TypingIndicator() {
 }
 
 export default function Adonis({ autoOpen = false }) {
+  const { profile } = useAuth()
   const [open, setOpen] = useState(autoOpen)
   const [messages, setMessages] = useState([OPENING_MESSAGE])
   const [input, setInput] = useState('')
@@ -100,7 +105,7 @@ export default function Adonis({ autoOpen = false }) {
     setMessages(newMessages)
     setLoading(true)
 
-    const progressContext = getProgressContext()
+    const progressContext = getProgressContext(profile?.tier)
     const systemWithProgress = SYSTEM_PROMPT + '\n\nUSER PROGRESS:\n' + progressContext
     const history = newMessages.slice(-20)
 

@@ -5,16 +5,23 @@ import Starter from './pages/Starter'
 import Playbook from './pages/Playbook'
 import Operator from './pages/Operator'
 import Profile from './pages/Profile'
+import Login from './pages/Login'
+import AuthCallback from './pages/AuthCallback'
+import Upgrade from './pages/Upgrade'
+import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
   return (
     <Routes>
       <Route path="/" element={<Landing />} />
-      <Route path="/free" element={<Free />} />
-      <Route path="/starter" element={<Starter />} />
-      <Route path="/playbook" element={<Playbook />} />
-      <Route path="/operator" element={<Operator />} />
-      <Route path="/profile" element={<Profile />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
+      <Route path="/upgrade" element={<Upgrade />} />
+      <Route path="/free" element={<ProtectedRoute requiredTier="free"><Free /></ProtectedRoute>} />
+      <Route path="/starter" element={<ProtectedRoute requiredTier="starter"><Starter /></ProtectedRoute>} />
+      <Route path="/playbook" element={<ProtectedRoute requiredTier="playbook"><Playbook /></ProtectedRoute>} />
+      <Route path="/operator" element={<ProtectedRoute requiredTier="operator"><Operator /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
     </Routes>
   )
 }
