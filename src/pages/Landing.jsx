@@ -7,6 +7,15 @@ const BG = '#111118'
 const SURFACE = '#1a1a24'
 const BORDER = '#2a2a38'
 
+const ERROR_MESSAGES = {
+  invalid: "My dear fellow, that does not resemble any electronic address known to man. Do consult your keyboard and try again.",
+  network: "The telegraph wires between us appear to have gone silent. Check your connection, for one cannot conduct correspondence through thin air.",
+  rate_limit: "You rap upon the door with such vigour, sir! Pray, a moment's patience before your next attempt.",
+  server: "I regret to inform you our headquarters is momentarily indisposed. Do try again shortly — these things have a way of sorting themselves out.",
+  duplicate: "Elementary, my dear user — you are already in our ledger. There is no need to present yourself twice.",
+  unknown: "Something most peculiar has transpired, and even I confess myself at a loss. Pray, attempt it once more.",
+}
+
 function LockIcon() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 inline-block mr-2 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -53,11 +62,21 @@ const tiers = [
 export default function Landing() {
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState('idle') // idle | loading | success | error
+  const [errorKey, setErrorKey] = useState(null)
 
   async function handleSubmit(e) {
     e.preventDefault()
     if (!email) return
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(email)) {
+      setStatus('error')
+      setErrorKey('invalid')
+      return
+    }
+
     setStatus('loading')
+    setErrorKey(null)
     try {
       const res = await fetch('/api/subscribe', {
         method: 'POST',
@@ -67,11 +86,18 @@ export default function Landing() {
       if (res.ok) {
         setStatus('success')
         setEmail('')
-      } else {
-        setStatus('error')
+        return
       }
+
+      setStatus('error')
+      if (res.status === 400) setErrorKey('invalid')
+      else if (res.status === 409) setErrorKey('duplicate')
+      else if (res.status === 429) setErrorKey('rate_limit')
+      else if (res.status >= 500) setErrorKey('server')
+      else setErrorKey('unknown')
     } catch {
       setStatus('error')
+      setErrorKey('network')
     }
   }
 
@@ -120,7 +146,7 @@ export default function Landing() {
           <p style={{ color: TEAL }} className="text-sm mb-3">You're in. Welcome to The Restack.</p>
         )}
         {status === 'error' && (
-          <p className="text-red-400 text-sm mb-3">Something went wrong. Try again.</p>
+          <p className="text-red-400 text-sm mb-3">{ERROR_MESSAGES[errorKey] || ERROR_MESSAGES.unknown}</p>
         )}
 
         <a
