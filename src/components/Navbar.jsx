@@ -20,6 +20,9 @@ export default function Navbar() {
           <Link to="/operator" className="text-sm text-gray-400 hover:text-white transition-colors no-underline hidden sm:block">
             Operator
           </Link>
+          <Link to="/profile" className="text-sm text-gray-400 hover:text-white transition-colors no-underline hidden sm:block">
+            Profile
+          </Link>
           <a
             href="https://getfluxe.gumroad.com/l/FlowState"
             target="_blank"

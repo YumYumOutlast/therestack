@@ -4,6 +4,7 @@ import Free from './pages/Free'
 import Starter from './pages/Starter'
 import Playbook from './pages/Playbook'
 import Operator from './pages/Operator'
+import Profile from './pages/Profile'
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
       <Route path="/starter" element={<Starter />} />
       <Route path="/playbook" element={<Playbook />} />
       <Route path="/operator" element={<Operator />} />
+      <Route path="/profile" element={<Profile />} />
     </Routes>
   )
 }

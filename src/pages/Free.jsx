@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import Navbar from '../components/Navbar'
+import Adonis from '../components/Adonis'
 import TabDashboard from '../components/TabDashboard'
 import WorkflowCard from '../components/WorkflowCard'
 import WorkflowStep from '../components/WorkflowStep'
@@ -289,6 +290,7 @@ export default function Free() {
       <footer className="py-8 text-center" style={{ borderTop: '1px solid #2a2a38' }}>
         <p className="text-zinc-500 text-sm">© 2026 The Restack. Built for the ones who didn't wait.</p>
       </footer>
+      <Adonis />
     </div>
   )
 }
