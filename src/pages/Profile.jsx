@@ -2,13 +2,14 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Adonis from '../components/Adonis'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
 
 const TOTAL_STEPS = 155
 
 const TIERS = [
   {
     id: 'free',
-    prefix: 'restack_free_',
     total: 20,
     badge: 'Free',
     title: 'FlowState Guide',
@@ -18,7 +19,6 @@ const TIERS = [
   },
   {
     id: 'starter',
-    prefix: 'restack_starter_',
     total: 45,
     badge: 'Starter · $27',
     title: 'AI-Proof Starter Kit',
@@ -28,7 +28,6 @@ const TIERS = [
   },
   {
     id: 'playbook',
-    prefix: 'restack_playbook_',
     total: 40,
     badge: 'Playbook · $79',
     title: 'AI-Proof Playbook',
@@ -38,7 +37,6 @@ const TIERS = [
   },
   {
     id: 'operator',
-    prefix: 'restack_operator_',
     total: 50,
     badge: 'Operator · $149',
     title: 'Automation Consultant Kit',
@@ -48,29 +46,34 @@ const TIERS = [
   },
 ]
 
-function countPrefix(prefix) {
-  let count = 0
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i)
-    if (key && key.startsWith(prefix) && localStorage.getItem(key) === 'true') {
-      count++
-    }
-  }
-  return count
-}
-
 export default function Profile() {
+  const { user } = useAuth()
   const [counts, setCounts] = useState({ free: 0, starter: 0, playbook: 0, operator: 0 })
   const [showAdonis, setShowAdonis] = useState(false)
 
   useEffect(() => {
-    setCounts({
-      free: countPrefix('restack_free_'),
-      starter: countPrefix('restack_starter_'),
-      playbook: countPrefix('restack_playbook_'),
-      operator: countPrefix('restack_operator_'),
-    })
-  }, [])
+    if (!user) {
+      setCounts({ free: 0, starter: 0, playbook: 0, operator: 0 })
+      return
+    }
+    let cancelled = false
+    supabase
+      .from('progress')
+      .select('page')
+      .eq('user_id', user.id)
+      .eq('completed', true)
+      .then(({ data }) => {
+        if (cancelled || !data) return
+        const next = { free: 0, starter: 0, playbook: 0, operator: 0 }
+        for (const row of data) {
+          if (row.page in next) next[row.page]++
+        }
+        setCounts(next)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [user])
 
   const totalDone = counts.free + counts.starter + counts.playbook + counts.operator
   const totalPct = Math.round((totalDone / TOTAL_STEPS) * 100)

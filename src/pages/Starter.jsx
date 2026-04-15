@@ -6,16 +6,10 @@ import WorkflowCard from '../components/WorkflowCard'
 import WorkflowStep from '../components/WorkflowStep'
 import PromptBlock from '../components/PromptBlock'
 import PromptLibrary from '../components/PromptLibrary'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
 
-// ── localStorage step keys ─────────────────────────────────────────────────
-const DEPT_STEPS = {
-  clients:  ['restack_starter_clients_1_step_1','restack_starter_clients_1_step_2','restack_starter_clients_1_step_3','restack_starter_clients_1_step_4','restack_starter_clients_2_step_1','restack_starter_clients_2_step_2','restack_starter_clients_2_step_3','restack_starter_clients_3_step_1','restack_starter_clients_3_step_2','restack_starter_clients_3_step_3'],
-  finance:  ['restack_starter_finance_1_step_1','restack_starter_finance_1_step_2','restack_starter_finance_1_step_3','restack_starter_finance_2_step_1','restack_starter_finance_2_step_2','restack_starter_finance_2_step_3','restack_starter_finance_3_step_1','restack_starter_finance_3_step_2','restack_starter_finance_3_step_3'],
-  marketing:['restack_starter_mktg_1_step_1','restack_starter_mktg_1_step_2','restack_starter_mktg_2_step_1','restack_starter_mktg_2_step_2','restack_starter_mktg_3_step_1','restack_starter_mktg_3_step_2'],
-  hr:       ['restack_starter_hr_1_step_1','restack_starter_hr_1_step_2','restack_starter_hr_2_step_1','restack_starter_hr_2_step_2','restack_starter_hr_3_step_1'],
-  projects: ['restack_starter_proj_1_step_1','restack_starter_proj_2_step_1','restack_starter_proj_2_step_2','restack_starter_proj_2_step_3','restack_starter_proj_3_step_1','restack_starter_proj_3_step_2','restack_starter_proj_3_step_3'],
-}
-const ALL_STEP_KEYS = Object.values(DEPT_STEPS).flat()
+const TOTAL_STEPS = 37
 
 // ── All prompts ────────────────────────────────────────────────────────────
 const ALL_PROMPTS = [
@@ -38,12 +32,23 @@ const ALL_PROMPTS = [
 ]
 
 // ── Shared helpers ─────────────────────────────────────────────────────────
-function ProgressSummary({ stepKeys }) {
+function ProgressSummary() {
+  const { user } = useAuth()
   const [completed, setCompleted] = useState(0)
   useEffect(() => {
-    setCompleted(stepKeys.filter((k) => localStorage.getItem(k) === 'true').length)
-  }, [stepKeys])
-  const total = stepKeys.length
+    if (!user) {
+      setCompleted(0)
+      return
+    }
+    supabase
+      .from('progress')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('page', 'starter')
+      .eq('completed', true)
+      .then(({ count }) => setCompleted(count ?? 0))
+  }, [user])
+  const total = TOTAL_STEPS
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0
   return (
     <div className="mt-8 bg-zinc-900 border border-zinc-800 rounded-xl p-5">
@@ -119,7 +124,7 @@ function StartHereTab({ setActiveTab }) {
           </div>
         ))}
       </div>
-      <ProgressSummary stepKeys={ALL_STEP_KEYS} />
+      <ProgressSummary />
     </div>
   )
 }

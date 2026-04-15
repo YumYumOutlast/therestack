@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
+import { supabase } from '../lib/supabase'
 
 const SYSTEM_PROMPT = `You are Adonis — the AI mentor inside The Restack, an alternative education platform teaching AI automation skills. You are direct, warm, and specific. You do not give generic advice.
 
@@ -49,16 +50,21 @@ const OPENING_MESSAGE = {
     "Hey. I'm Adonis — your mentor inside The Restack. I know every workflow in your stack. Tell me where you're stuck, what you've completed, or ask me what to do next. I'll give you a straight answer.",
 }
 
-function getProgressContext(tier) {
-  const completed = []
-  for (let i = 0; i < localStorage.length; i++) {
-    const key = localStorage.key(i)
-    if (key && key.startsWith('restack_') && localStorage.getItem(key) === 'true') {
-      completed.push(key.replace('restack_', '').replace(/_/g, ' '))
-    }
-  }
+async function getProgressContext(tier, userId) {
   let context = ''
   if (tier) context += `The user's current tier is: ${tier}.\n`
+  if (!userId) {
+    context += 'The user is not signed in, so no progress is tracked yet.'
+    return context
+  }
+  const { data } = await supabase
+    .from('progress')
+    .select('page, workflow_id, step_number')
+    .eq('user_id', userId)
+    .eq('completed', true)
+  const completed = (data ?? []).map(
+    (r) => `${r.page} ${r.workflow_id} step ${r.step_number}`
+  )
   if (completed.length === 0) context += 'The user has not completed any steps yet.'
   else context += `The user has completed these steps: ${completed.join(', ')}.`
   return context
@@ -81,7 +87,7 @@ function TypingIndicator() {
 }
 
 export default function Adonis({ autoOpen = false }) {
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
   const [open, setOpen] = useState(autoOpen)
   const [messages, setMessages] = useState([OPENING_MESSAGE])
   const [input, setInput] = useState('')
@@ -105,7 +111,7 @@ export default function Adonis({ autoOpen = false }) {
     setMessages(newMessages)
     setLoading(true)
 
-    const progressContext = getProgressContext(profile?.tier)
+    const progressContext = await getProgressContext(profile?.tier, user?.id)
     const systemWithProgress = SYSTEM_PROMPT + '\n\nUSER PROGRESS:\n' + progressContext
     const history = newMessages.slice(-20)
 

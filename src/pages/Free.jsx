@@ -6,15 +6,10 @@ import WorkflowCard from '../components/WorkflowCard'
 import WorkflowStep from '../components/WorkflowStep'
 import PromptBlock from '../components/PromptBlock'
 import PromptLibrary from '../components/PromptLibrary'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
 
-// ── localStorage step keys ─────────────────────────────────────────────────
-const ALL_STEP_KEYS = [
-  'restack_free_email_step_1','restack_free_email_step_2','restack_free_email_step_3','restack_free_email_step_4',
-  'restack_free_meeting_step_1','restack_free_meeting_step_2','restack_free_meeting_step_3','restack_free_meeting_step_4',
-  'restack_free_sheets_step_1','restack_free_sheets_step_2','restack_free_sheets_step_3','restack_free_sheets_step_4',
-  'restack_free_zapier_step_1','restack_free_zapier_step_2','restack_free_zapier_step_3','restack_free_zapier_step_4',
-  'restack_free_reports_step_1','restack_free_reports_step_2','restack_free_reports_step_3','restack_free_reports_step_4',
-]
+const TOTAL_STEPS = 20
 
 // ── All prompts for Prompt Library tab ────────────────────────────────────
 const ALL_PROMPTS = [
@@ -32,12 +27,23 @@ const ALL_PROMPTS = [
 ]
 
 // ── Progress bar shown on Start Here ──────────────────────────────────────
-function ProgressSummary({ stepKeys }) {
+function ProgressSummary() {
+  const { user } = useAuth()
   const [completed, setCompleted] = useState(0)
   useEffect(() => {
-    setCompleted(stepKeys.filter((k) => localStorage.getItem(k) === 'true').length)
-  }, [stepKeys])
-  const total = stepKeys.length
+    if (!user) {
+      setCompleted(0)
+      return
+    }
+    supabase
+      .from('progress')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('page', 'free')
+      .eq('completed', true)
+      .then(({ count }) => setCompleted(count ?? 0))
+  }, [user])
+  const total = TOTAL_STEPS
   const pct = total > 0 ? Math.round((completed / total) * 100) : 0
   return (
     <div className="mt-8 bg-zinc-900 border border-zinc-800 rounded-xl p-5">
@@ -99,7 +105,7 @@ function StartHereTab({ setActiveTab }) {
           </div>
         ))}
       </div>
-      <ProgressSummary stepKeys={ALL_STEP_KEYS} />
+      <ProgressSummary />
     </div>
   )
 }

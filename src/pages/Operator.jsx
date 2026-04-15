@@ -6,19 +6,10 @@ import WorkflowCard from '../components/WorkflowCard'
 import WorkflowStep from '../components/WorkflowStep'
 import PromptBlock from '../components/PromptBlock'
 import PromptLibrary from '../components/PromptLibrary'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
 
-const ALL_STEP_KEYS = [
-  'restack_operator_services_step_1',
-  'restack_operator_packaging_step_1',
-  'restack_operator_packaging_step_2',
-  'restack_operator_acquisition_step_1',
-  'restack_operator_acquisition_step_2',
-  'restack_operator_delivery_step_1',
-  'restack_operator_delivery_step_2',
-  'restack_operator_delivery_step_3',
-  'restack_operator_scaling_step_1',
-  'restack_operator_scaling_step_2',
-]
+const TOTAL_STEPS = 10
 
 const ALL_PROMPTS = [
   {
@@ -120,13 +111,23 @@ Subject: Quick favor?`,
 ]
 
 function ProgressSummary() {
+  const { user } = useAuth()
   const [count, setCount] = useState(0)
   useEffect(() => {
-    const done = ALL_STEP_KEYS.filter((k) => localStorage.getItem(k) === 'true').length
-    setCount(done)
-  }, [])
-  const total = ALL_STEP_KEYS.length
-  const pct = Math.round((count / total) * 100)
+    if (!user) {
+      setCount(0)
+      return
+    }
+    supabase
+      .from('progress')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .eq('page', 'operator')
+      .eq('completed', true)
+      .then(({ count: c }) => setCount(c ?? 0))
+  }, [user])
+  const total = TOTAL_STEPS
+  const pct = total > 0 ? Math.round((count / total) * 100) : 0
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-6">
       <div className="flex items-center justify-between mb-2">

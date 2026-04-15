@@ -1,17 +1,52 @@
 import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabase'
+import { useAuth } from '../hooks/useAuth'
 
 export default function WorkflowStep({ stepNumber, title, children, workflowId }) {
-  const storageKey = `restack_${workflowId}_step_${stepNumber}`
+  const { user } = useAuth()
   const [checked, setChecked] = useState(false)
 
-  useEffect(() => {
-    setChecked(localStorage.getItem(storageKey) === 'true')
-  }, [storageKey])
+  // workflowId is the legacy "{page}_{slug}" form, e.g. "free_email", "starter_clients_1"
+  const [page, ...rest] = workflowId.split('_')
+  const slug = rest.join('_')
 
-  function handleChange(e) {
+  useEffect(() => {
+    if (!user) {
+      setChecked(false)
+      return
+    }
+    let cancelled = false
+    supabase
+      .from('progress')
+      .select('completed')
+      .eq('user_id', user.id)
+      .eq('page', page)
+      .eq('workflow_id', slug)
+      .eq('step_number', stepNumber)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled) setChecked(data?.completed === true)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [user, page, slug, stepNumber])
+
+  async function handleChange(e) {
     const val = e.target.checked
     setChecked(val)
-    localStorage.setItem(storageKey, String(val))
+    if (!user) return
+    await supabase.from('progress').upsert(
+      {
+        user_id: user.id,
+        page,
+        workflow_id: slug,
+        step_number: stepNumber,
+        completed: val,
+        completed_at: val ? new Date().toISOString() : null,
+      },
+      { onConflict: 'user_id,page,workflow_id,step_number' }
+    )
   }
 
   return (
