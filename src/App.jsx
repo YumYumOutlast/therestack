@@ -8,6 +8,7 @@ import Profile from './pages/Profile'
 import Login from './pages/Login'
 import AuthCallback from './pages/AuthCallback'
 import Upgrade from './pages/Upgrade'
+import ZapierSetup from './pages/ZapierSetup'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -22,6 +23,7 @@ export default function App() {
       <Route path="/playbook" element={<ProtectedRoute requiredTier="playbook"><Playbook /></ProtectedRoute>} />
       <Route path="/operator" element={<ProtectedRoute requiredTier="operator"><Operator /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+      <Route path="/zapier-setup" element={<ProtectedRoute><ZapierSetup /></ProtectedRoute>} />
     </Routes>
   )
 }

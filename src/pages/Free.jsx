@@ -6,6 +6,7 @@ import WorkflowCard from '../components/WorkflowCard'
 import WorkflowStep from '../components/WorkflowStep'
 import PromptBlock from '../components/PromptBlock'
 import PromptLibrary from '../components/PromptLibrary'
+import ConnectGoogle from '../components/ConnectGoogle'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 
@@ -114,6 +115,9 @@ function EmailDraftingTab() {
   return (
     <WorkflowCard title="Email Drafting on Autopilot" timeSaved="~45 min/day" tools="ChatGPT + Gmail / Outlook" id="email">
       <WorkflowStep stepNumber={1} title="Save these 5 prompt templates" workflowId="free_email">
+        <div className="mb-3">
+          <ConnectGoogle page="free" workflowId="email" stepNumber={1} source="gmail" />
+        </div>
         <p className="text-zinc-300 text-sm mb-3">Copy them into a pinned doc right now. You'll use them every day.</p>
         <PromptBlock content={`1. Client Update:\n"Write a professional email updating [client name] on [project]. Key points: [bullet points]. Tone: confident but warm."\n\n2. Meeting Follow-Up:\n"Write a follow-up email for a meeting about [topic]. Action items: [list]. Next meeting: [date]."\n\n3. Status Report:\n"Write a status report email to my manager. Completed: [list]. In progress: [list]. Blockers: [list]."\n\n4. Cold Outreach:\n"Write a short outreach email to [person/role] at [company]. I want to [goal]. Keep it under 100 words."\n\n5. Difficult Reply:\n"Help me respond professionally to this email: [paste email]. I want to [your goal] without [what to avoid]."`} />
       </WorkflowStep>
