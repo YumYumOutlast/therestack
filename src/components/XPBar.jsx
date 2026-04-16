@@ -1,16 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
-
-const RANK_ORDER = ['recruit', 'flow', 'builder', 'strategist', 'sovereign']
-
-const RANK_META = {
-  recruit:    { label: 'Recruit',    color: 'text-zinc-400',  border: 'border-zinc-600',  bg: 'bg-zinc-800' },
-  flow:       { label: 'Flow',       color: 'text-teal-400',  border: 'border-teal-500/40', bg: 'bg-teal-500/10' },
-  builder:    { label: 'Builder',    color: 'text-blue-400',  border: 'border-blue-500/40', bg: 'bg-blue-500/10' },
-  strategist: { label: 'Strategist', color: 'text-purple-400', border: 'border-purple-500/40', bg: 'bg-purple-500/10' },
-  sovereign:  { label: 'Sovereign',  color: 'text-amber-400', border: 'border-amber-500/40', bg: 'bg-amber-500/10' },
-}
+import { RANK_ORDER, RANK_META } from '../lib/rankMeta'
 
 const MAX_XP = 155 * 25 + 4 * 100 // 4275
 
@@ -62,7 +53,7 @@ export default function XPBar() {
           <span
             className={`text-xs font-bold px-2.5 py-1 rounded-full border ${meta.color} ${meta.border} ${meta.bg}`}
           >
-            ✦ {meta.label}
+            {meta.icon ? `${meta.icon} ` : ''}{meta.label}
           </span>
           {nextMeta && (
             <span className="text-zinc-600 text-xs">→ {nextMeta.label} next</span>

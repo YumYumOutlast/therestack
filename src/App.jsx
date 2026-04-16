@@ -9,6 +9,8 @@ import Login from './pages/Login'
 import AuthCallback from './pages/AuthCallback'
 import Upgrade from './pages/Upgrade'
 import ZapierSetup from './pages/ZapierSetup'
+import Verify from './pages/Verify'
+import Registry from './pages/Registry'
 import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
@@ -24,6 +26,8 @@ export default function App() {
       <Route path="/operator" element={<ProtectedRoute requiredTier="operator"><Operator /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
       <Route path="/zapier-setup" element={<ProtectedRoute><ZapierSetup /></ProtectedRoute>} />
+      <Route path="/verify/:credential_id" element={<Verify />} />
+      <Route path="/registry" element={<Registry />} />
     </Routes>
   )
 }

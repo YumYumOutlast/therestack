@@ -5,6 +5,7 @@ import Adonis from '../components/Adonis'
 import XPBar from '../components/XPBar'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
+import { RANK_META } from '../lib/rankMeta'
 
 const TOTAL_STEPS = 155
 
@@ -50,11 +51,13 @@ const TIERS = [
 export default function Profile() {
   const { user } = useAuth()
   const [counts, setCounts] = useState({ free: 0, starter: 0, playbook: 0, operator: 0 })
+  const [certs, setCerts] = useState([])
   const [showAdonis, setShowAdonis] = useState(false)
 
   useEffect(() => {
     if (!user) {
       setCounts({ free: 0, starter: 0, playbook: 0, operator: 0 })
+      setCerts([])
       return
     }
     let cancelled = false
@@ -70,6 +73,14 @@ export default function Profile() {
           if (row.page in next) next[row.page]++
         }
         setCounts(next)
+      })
+    supabase
+      .from('certifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('issued_at', { ascending: true })
+      .then(({ data }) => {
+        if (!cancelled) setCerts(data ?? [])
       })
     return () => {
       cancelled = true
@@ -201,6 +212,44 @@ export default function Profile() {
             </p>
           )}
         </div>
+
+        {/* Earned certifications */}
+        {certs.length > 0 && (
+          <div className="mb-8">
+            <h2 className="text-white font-bold text-lg mb-4">Your Certificates</h2>
+            <div className="flex flex-col gap-3">
+              {certs.map((cert) => {
+                const meta = RANK_META[cert.rank]
+                if (!meta) return null
+                return (
+                  <div
+                    key={cert.id}
+                    className={`border rounded-xl px-5 py-4 flex items-center justify-between gap-4 ${meta.border} ${meta.bg}`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className={`text-2xl font-bold shrink-0 ${meta.color}`}>{meta.icon}</span>
+                      <div className="min-w-0">
+                        <p className={`font-bold text-sm ${meta.color}`}>{meta.label}</p>
+                        <p className="text-zinc-500 text-xs font-mono truncate">{cert.credential_id}</p>
+                        <p className="text-zinc-600 text-xs">
+                          {new Date(cert.issued_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                        </p>
+                      </div>
+                    </div>
+                    <a
+                      href={cert.certificate_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`shrink-0 text-xs font-bold border px-3 py-1.5 rounded-lg transition-colors no-underline ${meta.color} ${meta.border} hover:opacity-80`}
+                    >
+                      ⬇ Download
+                    </a>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Credential teaser */}
         <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 opacity-70">
