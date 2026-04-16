@@ -61,6 +61,12 @@ export default function Login() {
             >
               {loading ? 'Sending...' : 'Send login link'}
             </button>
+            <p className="text-zinc-400 text-sm text-center mt-4">
+              New here?{' '}
+              <a href="/" style={{ color: '#00D4AA' }} className="no-underline hover:opacity-80 transition-opacity">
+                Start for free
+              </a>
+            </p>
           </form>
         ) : (
           <div className="text-center space-y-3">
