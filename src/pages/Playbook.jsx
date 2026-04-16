@@ -6,6 +6,8 @@ import WorkflowCard from '../components/WorkflowCard'
 import WorkflowStep from '../components/WorkflowStep'
 import PromptBlock from '../components/PromptBlock'
 import PromptLibrary from '../components/PromptLibrary'
+import ClaimForm from '../components/ClaimForm'
+import XPBar from '../components/XPBar'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 
@@ -163,6 +165,7 @@ function StartHereTab({ setActiveTab }) {
           You're here to get promoted for it. There's a difference between someone who saves time and someone who turns that saved time into career leverage. This playbook is the system for doing the second thing.
         </p>
       </div>
+      <XPBar />
       <ProgressSummary />
       <h3 className="text-white font-bold text-base mb-4">Your 5 Phases</h3>
       <div className="space-y-3">
@@ -691,6 +694,7 @@ export default function Playbook() {
     { id: 'promotion', label: 'Promotion Play', content: <PromotionPlayTab /> },
     { id: 'calendar', label: '30-Day Calendar', content: <CalendarTab /> },
     { id: 'prompts', label: 'Prompt Library', content: <PromptLibrary prompts={ALL_PROMPTS} /> },
+    { id: 'rankup',  label: 'Rank Up',        content: <ClaimForm gate="playbook" /> },
   ]
 
   return (

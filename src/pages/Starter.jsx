@@ -6,6 +6,8 @@ import WorkflowCard from '../components/WorkflowCard'
 import WorkflowStep from '../components/WorkflowStep'
 import PromptBlock from '../components/PromptBlock'
 import PromptLibrary from '../components/PromptLibrary'
+import ClaimForm from '../components/ClaimForm'
+import XPBar from '../components/XPBar'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 
@@ -124,6 +126,7 @@ function StartHereTab({ setActiveTab }) {
           </div>
         ))}
       </div>
+      <XPBar />
       <ProgressSummary />
     </div>
   )
@@ -382,6 +385,7 @@ export default function Starter() {
     { id: 'hr',        label: 'HR',            content: <HrTab /> },
     { id: 'projects',  label: 'Projects',      content: <ProjectsTab /> },
     { id: 'prompts',   label: 'Prompt Library',content: <PromptLibrary prompts={ALL_PROMPTS} /> },
+    { id: 'rankup',    label: 'Rank Up',       content: <ClaimForm gate="starter" /> },
   ]
 
   return (

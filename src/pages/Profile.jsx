@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 import Adonis from '../components/Adonis'
+import XPBar from '../components/XPBar'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 
@@ -98,6 +99,9 @@ export default function Profile() {
           <h1 className="text-3xl font-bold text-white mb-2">Your Stack</h1>
           <p className="text-zinc-400">Track your progress across every tier.</p>
         </div>
+
+        {/* XP + Rank */}
+        <XPBar />
 
         {/* Overall progress */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-8">

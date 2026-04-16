@@ -6,6 +6,8 @@ import WorkflowCard from '../components/WorkflowCard'
 import WorkflowStep from '../components/WorkflowStep'
 import PromptBlock from '../components/PromptBlock'
 import PromptLibrary from '../components/PromptLibrary'
+import ClaimForm from '../components/ClaimForm'
+import XPBar from '../components/XPBar'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 
@@ -154,6 +156,7 @@ function StartHereTab({ setActiveTab }) {
           Time to charge for it. You have the skills, the system, the templates, and the scripts. The only step left is building the business around what you can already do.
         </p>
       </div>
+      <XPBar />
       <ProgressSummary />
       <h3 className="text-white font-bold text-base mb-4">Your 30-Day Launch Plan</h3>
       <div className="space-y-3 mb-8">
@@ -736,6 +739,7 @@ export default function Operator() {
     { id: 'delivery', label: 'Delivery', content: <DeliveryTab /> },
     { id: 'scaling', label: 'Scaling', content: <ScalingTab /> },
     { id: 'templates', label: 'Templates', content: <PromptLibrary prompts={ALL_PROMPTS} /> },
+    { id: 'rankup',    label: 'Rank Up',   content: <ClaimForm gate="operator" /> },
   ]
 
   return (
