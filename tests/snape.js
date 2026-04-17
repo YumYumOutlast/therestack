@@ -103,16 +103,28 @@ async function main() {
     if (/\/upgrade/.test(page.url())) {
       throw new Error('redirected to /upgrade — test user lacks free tier access (profile.tier may be null)')
     }
-    const hasWorkflow = await page.getByText(/Email Drafting/i).count()
-    if (hasWorkflow === 0) throw new Error('no workflow content visible on /free')
-    return '/free loaded with workflow content'
+    // Assert the default tab (Start Here) H2 — distinctive to page content,
+    // not a tab-button label that would match even on other tabs.
+    const hasH2 = await page.getByText(/Start here\. Pick one workflow/i).count()
+    if (hasH2 === 0) throw new Error('default-tab H2 "Start here. Pick one workflow" not visible')
+    return '/free loaded on Start Here tab'
   })
 
   // ── 5. Check 3 workflow checkboxes, refresh, confirm persistence ──────────
   await runStep(5, 'Check 3 workflow checkboxes and confirm persistence across refresh', async () => {
+    // Default tab (Start Here) has no checkboxes — they live on workflow tabs.
+    // Click into "Email Drafting" where 4 WorkflowStep checkboxes exist.
+    const openTab = async () => {
+      const tabBtn = page.getByRole('button', { name: /^Email Drafting$/ }).first()
+      if (await tabBtn.count() === 0) throw new Error('no "Email Drafting" tab button found')
+      await tabBtn.click()
+      await page.waitForTimeout(500)
+    }
+    await openTab()
+
     const boxes = page.locator('input[type="checkbox"]')
     const n = await boxes.count()
-    if (n === 0) throw new Error('no checkboxes visible on /free')
+    if (n === 0) throw new Error('no checkboxes visible on Email Drafting tab')
 
     let newlyChecked = 0
     let alreadyChecked = 0
@@ -133,9 +145,11 @@ async function main() {
       throw new Error(`only ${newlyChecked + alreadyChecked} checkboxes available on this tab`)
     }
 
-    // Reload and verify persistence
+    // Reload — active tab resets to Start Here, so re-open Email Drafting
     await page.reload({ waitUntil: 'domcontentloaded' })
     await page.waitForLoadState('networkidle').catch(() => {})
+    await openTab()
+
     const boxesAfter = page.locator('input[type="checkbox"]')
     let stillChecked = 0
     for (const idx of indicesChecked) {
@@ -145,7 +159,7 @@ async function main() {
     if (stillChecked < indicesChecked.length) {
       throw new Error(`checked ${indicesChecked.length} boxes but only ${stillChecked} persisted after reload`)
     }
-    return `${newlyChecked} newly checked + ${alreadyChecked} pre-existing, all ${stillChecked} persisted`
+    return `${newlyChecked} newly checked + ${alreadyChecked} pre-existing, all ${stillChecked} persisted on Email Drafting tab`
   })
 
   // ── 6. Navigate to /arena, verify section header ──────────────────────────
