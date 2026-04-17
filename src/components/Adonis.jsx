@@ -1,6 +1,37 @@
 import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
+import { RANK_META } from '../lib/rankMeta'
+
+const FREE_TIER_STEP_TOTAL = 20
+
+const NEXT_TIER_BY_RANK = {
+  flow: 'the Starter Kit — 15 automations across Clients, Finance, Marketing, HR, and Projects.',
+  builder: 'the AI-Proof Playbook — the complete system for getting promoted.',
+  strategist: 'the Operator Kit — everything you need to launch your consulting business.',
+  sovereign: "nothing above this — you own the full stack. Time to build your own.",
+}
+
+function buildIntroMessage({ totalSteps, freeSteps, claims }) {
+  if (totalSteps === 0) {
+    return "Hey — I'm Adonis, your mentor inside The Restack. You're starting at Apprentice I. Head to the Free page and knock out your first workflow. I'll be here when you need me."
+  }
+  if (claims === 0) {
+    const remaining = Math.max(0, FREE_TIER_STEP_TOTAL - freeSteps)
+    if (remaining === 0) {
+      return `You've got ${totalSteps} steps done. You've finished the Free tier — head to the Rank Up tab and file your first Claim.`
+    }
+    return `You've got ${totalSteps} steps done. You're ${remaining} steps away from filing your first Claim. Keep going.`
+  }
+  return null
+}
+
+function buildRankUpMessage(rank) {
+  const next = NEXT_TIER_BY_RANK[rank]
+  if (!next) return null
+  const label = RANK_META[rank]?.label ?? rank
+  return `You just hit ${label}. Here's what unlocks next — ${next}`
+}
 
 const SYSTEM_PROMPT = `You are Adonis — the AI mentor inside The Restack, an alternative education platform teaching AI automation skills. You are direct, warm, and specific. You do not give generic advice.
 
@@ -87,7 +118,7 @@ function TypingIndicator() {
 }
 
 export default function Adonis({ autoOpen = false }) {
-  const { user, profile } = useAuth()
+  const { user, profile, loading: authLoading } = useAuth()
   const [open, setOpen] = useState(autoOpen)
   const [messages, setMessages] = useState([OPENING_MESSAGE])
   const [input, setInput] = useState('')
@@ -97,6 +128,70 @@ export default function Adonis({ autoOpen = false }) {
   useEffect(() => {
     if (autoOpen) setOpen(true)
   }, [autoOpen])
+
+  useEffect(() => {
+    if (autoOpen) return
+    if (authLoading || !user) return
+
+    const introKey = `adonis_intro_seen_${user.id}`
+    const lastRankKey = `adonis_last_rank_${user.id}`
+    const hasSeenIntro = localStorage.getItem(introKey) === 'true'
+    const lastRank = localStorage.getItem(lastRankKey)
+    const currentRank = profile?.rank ?? 'recruit'
+    const rankedUp = Boolean(lastRank) && lastRank !== currentRank
+
+    if (!rankedUp && hasSeenIntro) return
+
+    let cancelled = false
+    let timer = null
+
+    async function schedule() {
+      let openingMsg = null
+
+      if (rankedUp) {
+        openingMsg = buildRankUpMessage(currentRank)
+      } else {
+        const [{ data: progressRows }, { count: claimsCount }] = await Promise.all([
+          supabase
+            .from('progress')
+            .select('page')
+            .eq('user_id', user.id)
+            .eq('completed', true),
+          supabase
+            .from('submissions')
+            .select('id', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+            .eq('status', 'approved'),
+        ])
+        if (cancelled) return
+        const rows = progressRows ?? []
+        openingMsg = buildIntroMessage({
+          totalSteps: rows.length,
+          freeSteps: rows.filter((r) => r.page === 'free').length,
+          claims: claimsCount ?? 0,
+        })
+      }
+
+      if (cancelled || !openingMsg) return
+
+      timer = setTimeout(() => {
+        if (cancelled) return
+        setOpen((prev) => {
+          if (!prev) setMessages([{ role: 'assistant', content: openingMsg }])
+          return true
+        })
+        localStorage.setItem(introKey, 'true')
+        localStorage.setItem(lastRankKey, currentRank)
+      }, 3000)
+    }
+
+    schedule()
+
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
+    }
+  }, [autoOpen, authLoading, user?.id, profile?.rank])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
