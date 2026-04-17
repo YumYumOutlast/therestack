@@ -47,13 +47,14 @@ Respond with JSON only. No explanation. No preamble. Example format:
 {"specific": true, "repeatable": false, "uses_ai": true}`
 
 async function scoreGate2(text) {
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  const { data: { session } } = await supabase.auth.getSession()
+  if (!session?.access_token) return null
+
+  const res = await fetch('/api/chat', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-api-key': import.meta.env.VITE_ANTHROPIC_API_KEY ?? '',
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
+      Authorization: `Bearer ${session.access_token}`,
     },
     body: JSON.stringify({
       model: 'claude-sonnet-4-20250514',
@@ -61,6 +62,7 @@ async function scoreGate2(text) {
       messages: [{ role: 'user', content: GATE2_PROMPT.replace('[SUBMISSION]', text) }],
     }),
   })
+  if (!res.ok) return null
   const data = await res.json()
   const raw = data.content?.[0]?.text ?? '{}'
   const match = raw.match(/\{[\s\S]*\}/)

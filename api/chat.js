@@ -35,9 +35,16 @@ module.exports = async function handler(req, res) {
   if (userErr || !userData?.user) return res.status(401).json({ error: 'invalid_auth' })
 
   const { system, messages, model, max_tokens } = req.body || {}
-  if (!system || !Array.isArray(messages) || messages.length === 0) {
+  if (!Array.isArray(messages) || messages.length === 0) {
     return res.status(400).json({ error: 'missing_fields' })
   }
+
+  const payload = {
+    model: model || DEFAULT_MODEL,
+    max_tokens: max_tokens || DEFAULT_MAX_TOKENS,
+    messages,
+  }
+  if (system) payload.system = system
 
   const upstream = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
@@ -46,12 +53,7 @@ module.exports = async function handler(req, res) {
       'x-api-key': ANTHROPIC_API_KEY,
       'anthropic-version': '2023-06-01',
     },
-    body: JSON.stringify({
-      model: model || DEFAULT_MODEL,
-      max_tokens: max_tokens || DEFAULT_MAX_TOKENS,
-      system,
-      messages,
-    }),
+    body: JSON.stringify(payload),
   })
 
   const body = await upstream.json().catch(() => ({ error: { message: 'invalid_upstream_response' } }))
