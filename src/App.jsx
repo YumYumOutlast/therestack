@@ -6,6 +6,8 @@ import Playbook from './pages/Playbook'
 import Operator from './pages/Operator'
 import Profile from './pages/Profile'
 import Login from './pages/Login'
+import Signup from './pages/Signup'
+import ResetPassword from './pages/ResetPassword'
 import AuthCallback from './pages/AuthCallback'
 import Upgrade from './pages/Upgrade'
 import ZapierSetup from './pages/ZapierSetup'
@@ -18,6 +20,8 @@ export default function App() {
     <Routes>
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/signup" element={<Signup />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="/upgrade" element={<Upgrade />} />
       <Route path="/free" element={<ProtectedRoute requiredTier="free"><Free /></ProtectedRoute>} />

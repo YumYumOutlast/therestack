@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import Navbar from '../components/Navbar'
 
 const TEAL = '#00D4AA'
@@ -7,14 +7,7 @@ const BG = '#111118'
 const SURFACE = '#1a1a24'
 const BORDER = '#2a2a38'
 
-const ERROR_MESSAGES = {
-  invalid: "My dear fellow, that does not resemble any electronic address known to man. Do consult your keyboard and try again.",
-  network: "The telegraph wires between us appear to have gone silent. Check your connection, for one cannot conduct correspondence through thin air.",
-  rate_limit: "You rap upon the door with such vigour, sir! Pray, a moment's patience before your next attempt.",
-  server: "I regret to inform you our headquarters is momentarily indisposed. Do try again shortly — these things have a way of sorting themselves out.",
-  duplicate: "Elementary, my dear user — you are already in our ledger. There is no need to present yourself twice.",
-  unknown: "Something most peculiar has transpired, and even I confess myself at a loss. Pray, attempt it once more.",
-}
+const INVALID_EMAIL_MESSAGE = "My dear fellow, that does not resemble any electronic address known to man. Do consult your keyboard and try again."
 
 function LockIcon() {
   return (
@@ -61,44 +54,29 @@ const tiers = [
 
 export default function Landing() {
   const [email, setEmail] = useState('')
-  const [status, setStatus] = useState('idle') // idle | loading | success | error
-  const [errorKey, setErrorKey] = useState(null)
+  const [keepSubscribed, setKeepSubscribed] = useState(true)
+  const [error, setError] = useState(false)
+  const navigate = useNavigate()
 
-  async function handleSubmit(e) {
+  function handleSubmit(e) {
     e.preventDefault()
     if (!email) return
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
     if (!emailRegex.test(email)) {
-      setStatus('error')
-      setErrorKey('invalid')
+      setError(true)
       return
     }
 
-    setStatus('loading')
-    setErrorKey(null)
-    try {
-      const res = await fetch('/api/subscribe', {
+    if (keepSubscribed) {
+      fetch('/api/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
-      })
-      if (res.ok) {
-        setStatus('success')
-        setEmail('')
-        return
-      }
-
-      setStatus('error')
-      if (res.status === 400) setErrorKey('invalid')
-      else if (res.status === 409) setErrorKey('duplicate')
-      else if (res.status === 429) setErrorKey('rate_limit')
-      else if (res.status >= 500) setErrorKey('server')
-      else setErrorKey('unknown')
-    } catch {
-      setStatus('error')
-      setErrorKey('network')
+      }).catch(() => {})
     }
+
+    navigate(`/signup?email=${encodeURIComponent(email)}`)
   }
 
   return (
@@ -115,38 +93,46 @@ export default function Landing() {
         </p>
 
         {/* Email Capture */}
-        <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto mb-4">
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            placeholder="Enter your email"
-            required
-            style={{
-              backgroundColor: SURFACE,
-              border: `1px solid ${BORDER}`,
-              color: 'white',
-              outline: 'none',
-            }}
-            onFocus={(e) => { e.target.style.borderColor = TEAL }}
-            onBlur={(e) => { e.target.style.borderColor = BORDER }}
-            className="flex-1 px-4 py-3 rounded-lg text-sm placeholder-gray-500 transition-colors"
-          />
-          <button
-            type="submit"
-            disabled={status === 'loading'}
-            style={{ backgroundColor: TEAL, color: '#111118' }}
-            className="px-6 py-3 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-60 whitespace-nowrap"
-          >
-            {status === 'loading' ? 'Joining…' : 'Join The Restack'}
-          </button>
+        <form onSubmit={handleSubmit} className="max-w-md mx-auto mb-4">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              required
+              style={{
+                backgroundColor: SURFACE,
+                border: `1px solid ${BORDER}`,
+                color: 'white',
+                outline: 'none',
+              }}
+              onFocus={(e) => { e.target.style.borderColor = TEAL }}
+              onBlur={(e) => { e.target.style.borderColor = BORDER }}
+              className="flex-1 px-4 py-3 rounded-lg text-sm placeholder-gray-500 transition-colors"
+            />
+            <button
+              type="submit"
+              style={{ backgroundColor: TEAL, color: '#111118' }}
+              className="px-6 py-3 rounded-lg font-semibold text-sm hover:opacity-90 transition-opacity whitespace-nowrap"
+            >
+              Join The Restack
+            </button>
+          </div>
+          <label className="flex items-center gap-2 mt-3 text-gray-400 text-sm cursor-pointer">
+            <input
+              type="checkbox"
+              checked={keepSubscribed}
+              onChange={(e) => setKeepSubscribed(e.target.checked)}
+              style={{ accentColor: TEAL }}
+              className="w-4 h-4"
+            />
+            Keep me in the loop on new tools and updates.
+          </label>
         </form>
 
-        {status === 'success' && (
-          <p style={{ color: TEAL }} className="text-sm mb-3">You're in. Welcome to The Restack.</p>
-        )}
-        {status === 'error' && (
-          <p className="text-red-400 text-sm mb-3">{ERROR_MESSAGES[errorKey] || ERROR_MESSAGES.unknown}</p>
+        {error && (
+          <p className="text-red-400 text-sm mb-3">{INVALID_EMAIL_MESSAGE}</p>
         )}
 
         <a
