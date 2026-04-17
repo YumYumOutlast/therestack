@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import Navbar from '../components/Navbar'
-import Adonis from '../components/Adonis'
 import XPBar from '../components/XPBar'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
@@ -271,8 +270,6 @@ export default function Profile() {
           </p>
         </div>
       </main>
-
-      {showAdonis && <Adonis autoOpen={true} />}
 
       <footer className="py-8 text-center border-t border-zinc-800">
         <p className="text-zinc-500 text-sm">© 2026 The Restack. Built for the ones who didn't wait.</p>

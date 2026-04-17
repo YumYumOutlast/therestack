@@ -14,24 +14,30 @@ import ZapierSetup from './pages/ZapierSetup'
 import Verify from './pages/Verify'
 import Registry from './pages/Registry'
 import ProtectedRoute from './components/ProtectedRoute'
+import Adonis from './components/Adonis'
+import { useAuth } from './hooks/useAuth'
 
 export default function App() {
+  const { user } = useAuth()
   return (
-    <Routes>
-      <Route path="/" element={<Landing />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/signup" element={<Signup />} />
-      <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/auth/callback" element={<AuthCallback />} />
-      <Route path="/upgrade" element={<Upgrade />} />
-      <Route path="/free" element={<ProtectedRoute requiredTier="free"><Free /></ProtectedRoute>} />
-      <Route path="/starter" element={<ProtectedRoute requiredTier="starter"><Starter /></ProtectedRoute>} />
-      <Route path="/playbook" element={<ProtectedRoute requiredTier="playbook"><Playbook /></ProtectedRoute>} />
-      <Route path="/operator" element={<ProtectedRoute requiredTier="operator"><Operator /></ProtectedRoute>} />
-      <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-      <Route path="/zapier-setup" element={<ProtectedRoute><ZapierSetup /></ProtectedRoute>} />
-      <Route path="/verify/:credential_id" element={<Verify />} />
-      <Route path="/registry" element={<Registry />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<Landing />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
+        <Route path="/upgrade" element={<Upgrade />} />
+        <Route path="/free" element={<ProtectedRoute requiredTier="free"><Free /></ProtectedRoute>} />
+        <Route path="/starter" element={<ProtectedRoute requiredTier="starter"><Starter /></ProtectedRoute>} />
+        <Route path="/playbook" element={<ProtectedRoute requiredTier="playbook"><Playbook /></ProtectedRoute>} />
+        <Route path="/operator" element={<ProtectedRoute requiredTier="operator"><Operator /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+        <Route path="/zapier-setup" element={<ProtectedRoute><ZapierSetup /></ProtectedRoute>} />
+        <Route path="/verify/:credential_id" element={<Verify />} />
+        <Route path="/registry" element={<Registry />} />
+      </Routes>
+      {user && <Adonis />}
+    </>
   )
 }
