@@ -13,6 +13,7 @@ import Upgrade from './pages/Upgrade'
 import ZapierSetup from './pages/ZapierSetup'
 import Verify from './pages/Verify'
 import Registry from './pages/Registry'
+import Arena from './pages/Arena'
 import ProtectedRoute from './components/ProtectedRoute'
 import Adonis from './components/Adonis'
 import { useAuth } from './hooks/useAuth'
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="/zapier-setup" element={<ProtectedRoute><ZapierSetup /></ProtectedRoute>} />
         <Route path="/verify/:credential_id" element={<Verify />} />
         <Route path="/registry" element={<Registry />} />
+        <Route path="/arena" element={<Arena />} />
       </Routes>
       {user && <Adonis />}
     </>

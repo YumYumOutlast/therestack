@@ -5,6 +5,8 @@ import XPBar from '../components/XPBar'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../hooks/useAuth'
 import { RANK_META } from '../lib/rankMeta'
+import { NEXT_RANK_UNLOCK, RANK_XP_BOUNDS, userHasTier } from '../lib/rankThresholds'
+import { fetchUserXp } from '../lib/xp'
 
 const TOTAL_STEPS = 155
 
@@ -48,15 +50,17 @@ const TIERS = [
 ]
 
 export default function Profile() {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const [counts, setCounts] = useState({ free: 0, starter: 0, playbook: 0, operator: 0 })
   const [certs, setCerts] = useState([])
+  const [xp, setXp] = useState(0)
   const [showAdonis, setShowAdonis] = useState(false)
 
   useEffect(() => {
     if (!user) {
       setCounts({ free: 0, starter: 0, playbook: 0, operator: 0 })
       setCerts([])
+      setXp(0)
       return
     }
     let cancelled = false
@@ -81,10 +85,22 @@ export default function Profile() {
       .then(({ data }) => {
         if (!cancelled) setCerts(data ?? [])
       })
+    fetchUserXp(user.id).then((total) => {
+      if (!cancelled) setXp(total)
+    })
     return () => {
       cancelled = true
     }
   }, [user])
+
+  const currentRank = profile?.rank ?? 'recruit'
+  const rankUnlock = NEXT_RANK_UNLOCK[currentRank]
+  const rankBounds = RANK_XP_BOUNDS[currentRank]
+  const atRankUpReady = Boolean(rankBounds?.upper) && xp >= rankBounds.upper
+  const needsPurchase =
+    rankUnlock && rankUnlock.price && rankUnlock.gumroadUrl &&
+    !userHasTier(profile?.tier, rankUnlock.requiredTier)
+  const nextRankLabel = rankUnlock ? (RANK_META[rankUnlock.nextRank]?.label ?? rankUnlock.nextRank) : null
 
   const totalDone = counts.free + counts.starter + counts.playbook + counts.operator
   const totalPct = Math.round((totalDone / TOTAL_STEPS) * 100)
@@ -112,6 +128,57 @@ export default function Profile() {
 
         {/* XP + Rank */}
         <XPBar />
+
+        {/* Rank Up CTA — appears when XP has hit the next-rank threshold */}
+        {atRankUpReady && rankUnlock && nextRankLabel && (
+          <div
+            style={{ backgroundColor: '#00D4AA12', border: '1px solid #00D4AA40' }}
+            className="rounded-2xl p-6 mb-8"
+          >
+            <p className="text-teal-400 text-xs font-bold tracking-widest uppercase mb-2">
+              Ready to rank up
+            </p>
+            <h3 className="text-white font-bold text-lg mb-1">
+              You've earned {nextRankLabel}
+            </h3>
+            <p className="text-zinc-400 text-sm mb-4">
+              {needsPurchase
+                ? `You've done the work. ${rankUnlock.productName} — $${rankUnlock.price} — is the last step before you can claim it.`
+                : rankUnlock.claimPath
+                  ? 'File your Claim to lock in the rank.'
+                  : 'Grab the final kit to lock it in.'}
+            </p>
+            {needsPurchase ? (
+              <a
+                href={rankUnlock.gumroadUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ backgroundColor: '#00D4AA', color: '#111118' }}
+                className="inline-block font-bold px-5 py-2.5 rounded-lg hover:opacity-90 transition-opacity no-underline text-sm"
+              >
+                Unlock {nextRankLabel} — ${rankUnlock.price} →
+              </a>
+            ) : rankUnlock.claimPath ? (
+              <Link
+                to={rankUnlock.claimPath}
+                style={{ backgroundColor: '#00D4AA', color: '#111118' }}
+                className="inline-block font-bold px-5 py-2.5 rounded-lg hover:opacity-90 transition-opacity no-underline text-sm"
+              >
+                File Your Claim →
+              </Link>
+            ) : (
+              <a
+                href={rankUnlock.gumroadUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ backgroundColor: '#00D4AA', color: '#111118' }}
+                className="inline-block font-bold px-5 py-2.5 rounded-lg hover:opacity-90 transition-opacity no-underline text-sm"
+              >
+                Unlock {nextRankLabel} — ${rankUnlock.price} →
+              </a>
+            )}
+          </div>
+        )}
 
         {/* Overall progress */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 mb-8">

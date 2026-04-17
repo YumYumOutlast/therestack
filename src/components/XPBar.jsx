@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
-import { supabase } from '../lib/supabase'
 import { RANK_ORDER, RANK_META } from '../lib/rankMeta'
-
-const MAX_XP = 155 * 25 + 4 * 100 // 4275
+import { RANK_XP_BOUNDS, getRankProgress } from '../lib/rankThresholds'
+import { fetchUserXp } from '../lib/xp'
 
 export default function XPBar() {
   const { user, profile } = useAuth()
@@ -17,20 +16,9 @@ export default function XPBar() {
       return
     }
     let cancelled = false
-    Promise.all([
-      supabase
-        .from('progress')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('completed', true),
-      supabase
-        .from('submissions')
-        .select('id', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('status', 'approved'),
-    ]).then(([{ count: steps }, { count: claims }]) => {
+    fetchUserXp(user.id).then((total) => {
       if (!cancelled) {
-        setXp((steps ?? 0) * 25 + (claims ?? 0) * 100)
+        setXp(total)
         setLoading(false)
       }
     })
@@ -42,7 +30,9 @@ export default function XPBar() {
   const rankIndex = RANK_ORDER.indexOf(rank)
   const nextRank = RANK_ORDER[rankIndex + 1]
   const nextMeta = nextRank ? RANK_META[nextRank] : null
-  const pct = Math.min(100, Math.round((xp / MAX_XP) * 100))
+  const bounds = RANK_XP_BOUNDS[rank] ?? RANK_XP_BOUNDS.recruit
+  const { pct } = getRankProgress(xp, rank)
+  const atMaxRank = bounds.upper == null
 
   if (loading) return null
 
@@ -71,7 +61,11 @@ export default function XPBar() {
         />
       </div>
       <div className="flex justify-between mt-1.5">
-        <p className="text-zinc-600 text-xs">Each step = 25 XP · Each claim = 100 XP</p>
+        <p className="text-zinc-600 text-xs">
+          {atMaxRank
+            ? `${xp.toLocaleString()} XP earned`
+            : `${xp.toLocaleString()} / ${bounds.upper.toLocaleString()} XP`}
+        </p>
         <p className="text-zinc-600 text-xs">{pct}%</p>
       </div>
     </div>

@@ -30,6 +30,9 @@ export default function Navbar() {
             <Link to="/operator" className="text-sm text-gray-400 hover:text-white transition-colors no-underline hidden sm:block">
               Operator
             </Link>
+            <Link to="/arena" className="text-sm text-gray-400 hover:text-white transition-colors no-underline hidden sm:block">
+              Arena
+            </Link>
             {user ? (
               <>
                 <Link to="/profile" className="text-sm text-gray-400 hover:text-white transition-colors no-underline hidden sm:block">
@@ -96,6 +99,9 @@ export default function Navbar() {
           </Link>
           <Link to="/operator" onClick={close} className="text-sm text-gray-400 hover:text-white transition-colors no-underline">
             Operator
+          </Link>
+          <Link to="/arena" onClick={close} className="text-sm text-gray-400 hover:text-white transition-colors no-underline">
+            Arena
           </Link>
           {user ? (
             <>
