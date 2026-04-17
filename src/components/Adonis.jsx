@@ -284,13 +284,20 @@ export default function Adonis({ autoOpen = false }) {
     const history = newMessages.slice(-20)
 
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        setMessages((prev) => [...prev, {
+          role: 'assistant',
+          content: "You need to be signed in to chat with me. Sign in and try again.",
+        }])
+        return
+      }
+
+      const res = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': import.meta.env.VITE_ANTHROPIC_API_KEY ?? '',
-          'anthropic-version': '2023-06-01',
-          'anthropic-dangerous-direct-browser-access': 'true',
+          Authorization: `Bearer ${session.access_token}`,
         },
         body: JSON.stringify({
           model: 'claude-sonnet-4-20250514',
@@ -305,11 +312,11 @@ export default function Adonis({ autoOpen = false }) {
       if (!res.ok) {
         console.error('Adonis API error', res.status, data)
         let msg
-        if (res.status === 401) msg = "API key isn't valid. Check VITE_ANTHROPIC_API_KEY in your .env."
+        if (res.status === 401) msg = "Your session expired. Sign in again and I'll be right here."
         else if (res.status === 429) msg = "Rate limited. Give it a minute and try again."
         else if (res.status >= 500) msg = "Anthropic's servers hiccupped. Try again in a sec."
         else {
-          const detail = data?.error?.message || `HTTP ${res.status}`
+          const detail = data?.error?.message || data?.error || `HTTP ${res.status}`
           msg = `Request failed: ${detail}`
         }
         setMessages((prev) => [...prev, { role: 'assistant', content: msg }])
@@ -331,7 +338,7 @@ export default function Adonis({ autoOpen = false }) {
       console.error('Adonis network error', err)
       setMessages((prev) => [...prev, {
         role: 'assistant',
-        content: "Can't reach the API. Check your connection and that VITE_ANTHROPIC_API_KEY is set.",
+        content: "Can't reach the server. Check your connection and try again.",
       }])
     } finally {
       setLoading(false)
