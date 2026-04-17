@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabase'
 import { RANK_META } from '../lib/rankMeta'
+import { NEXT_RANK_UNLOCK, RANK_XP_BOUNDS, userHasTier } from '../lib/rankThresholds'
+import { fetchUserXp } from '../lib/xp'
 
 const FREE_TIER_STEP_TOTAL = 20
 
@@ -14,7 +16,7 @@ const NEXT_TIER_BY_RANK = {
 
 function buildIntroMessage({ totalSteps, freeSteps, claims }) {
   if (totalSteps === 0) {
-    return "Hey — I'm Adonis, your mentor inside The Restack. You're starting at Apprentice I. Head to the Free page and knock out your first workflow. I'll be here when you need me."
+    return "Hey — I'm Adonis, your mentor inside The Restack. You're starting at Automation Operator I. Head to the Free page and knock out your first workflow. I'll be here when you need me."
   }
   if (claims === 0) {
     const remaining = Math.max(0, FREE_TIER_STEP_TOTAL - freeSteps)
@@ -31,6 +33,16 @@ function buildRankUpMessage(rank) {
   if (!next) return null
   const label = RANK_META[rank]?.label ?? rank
   return `You just hit ${label}. Here's what unlocks next — ${next}`
+}
+
+function buildPurchasePromptMessage(currentRank, xp) {
+  const unlock = NEXT_RANK_UNLOCK[currentRank]
+  if (!unlock || !unlock.price || !unlock.gumroadUrl) return null
+  const bounds = RANK_XP_BOUNDS[currentRank]
+  if (!bounds?.upper) return null
+  const gap = Math.max(0, bounds.upper - xp)
+  const nextLabel = RANK_META[unlock.nextRank]?.label ?? unlock.nextRank
+  return `You're ${gap} XP away from ${nextLabel}. To claim it you'll need ${unlock.productName} — $${unlock.price}. You've already done the work to get here.`
 }
 
 const SYSTEM_PROMPT = `You are Adonis — the AI mentor inside The Restack, an alternative education platform teaching AI automation skills. You are direct, warm, and specific. You do not give generic advice.
@@ -135,23 +147,28 @@ export default function Adonis({ autoOpen = false }) {
 
     const introKey = `adonis_intro_seen_${user.id}`
     const lastRankKey = `adonis_last_rank_${user.id}`
+    const currentRank = profile?.rank ?? 'recruit'
+    const purchasePromptKey = `adonis_80pct_prompted_${user.id}_${currentRank}`
     const hasSeenIntro = localStorage.getItem(introKey) === 'true'
     const lastRank = localStorage.getItem(lastRankKey)
-    const currentRank = profile?.rank ?? 'recruit'
     const rankedUp = Boolean(lastRank) && lastRank !== currentRank
-
-    if (!rankedUp && hasSeenIntro) return
+    const hasPromptedPurchase = localStorage.getItem(purchasePromptKey) === 'true'
 
     let cancelled = false
     let timer = null
 
     async function schedule() {
       let openingMsg = null
+      let purchaseFired = false
 
       if (rankedUp) {
         openingMsg = buildRankUpMessage(currentRank)
       } else {
-        const [{ data: progressRows }, { count: claimsCount }] = await Promise.all([
+        const [
+          { data: progressRows },
+          { count: claimsCount },
+          xp,
+        ] = await Promise.all([
           supabase
             .from('progress')
             .select('page')
@@ -162,14 +179,27 @@ export default function Adonis({ autoOpen = false }) {
             .select('id', { count: 'exact', head: true })
             .eq('user_id', user.id)
             .eq('status', 'approved'),
+          fetchUserXp(user.id),
         ])
         if (cancelled) return
-        const rows = progressRows ?? []
-        openingMsg = buildIntroMessage({
-          totalSteps: rows.length,
-          freeSteps: rows.filter((r) => r.page === 'free').length,
-          claims: claimsCount ?? 0,
-        })
+
+        const unlock = NEXT_RANK_UNLOCK[currentRank]
+        const bounds = RANK_XP_BOUNDS[currentRank]
+        const purchaseRequired =
+          unlock && unlock.price && unlock.gumroadUrl && !userHasTier(profile?.tier, unlock.requiredTier)
+        const at80pct = bounds?.upper && xp >= Math.floor(bounds.upper * 0.8)
+
+        if (purchaseRequired && at80pct && !hasPromptedPurchase) {
+          openingMsg = buildPurchasePromptMessage(currentRank, xp)
+          purchaseFired = true
+        } else if (!hasSeenIntro) {
+          const rows = progressRows ?? []
+          openingMsg = buildIntroMessage({
+            totalSteps: rows.length,
+            freeSteps: rows.filter((r) => r.page === 'free').length,
+            claims: claimsCount ?? 0,
+          })
+        }
       }
 
       if (cancelled || !openingMsg) return
@@ -182,6 +212,7 @@ export default function Adonis({ autoOpen = false }) {
         })
         localStorage.setItem(introKey, 'true')
         localStorage.setItem(lastRankKey, currentRank)
+        if (purchaseFired) localStorage.setItem(purchasePromptKey, 'true')
       }, 3000)
     }
 

@@ -6,7 +6,7 @@ export const RANK_ORDER = ['recruit', 'flow', 'builder', 'strategist', 'sovereig
 
 export const RANK_META = {
   recruit: {
-    label: 'Recruit',
+    label: 'Automation Trainee',
     code: null,
     icon: null,
     color: 'text-zinc-400',
@@ -14,32 +14,32 @@ export const RANK_META = {
     bg: 'bg-zinc-800',
   },
   flow: {
-    label: 'Apprentice I',
-    code: 'RA1',
+    label: 'Automation Operator I',
+    code: 'AO1',
     icon: '◈',
     color: 'text-teal-400',
     border: 'border-teal-500/40',
     bg: 'bg-teal-500/10',
   },
   builder: {
-    label: 'Apprentice II',
-    code: 'RA2',
+    label: 'Automation Operator II',
+    code: 'AO2',
     icon: '◆',
     color: 'text-blue-400',
     border: 'border-blue-500/40',
     bg: 'bg-blue-500/10',
   },
   strategist: {
-    label: 'Operator',
-    code: 'ROP',
+    label: 'Certified Automation Operator',
+    code: 'CAO',
     icon: '⬡',
     color: 'text-purple-400',
     border: 'border-purple-500/40',
     bg: 'bg-purple-500/10',
   },
   sovereign: {
-    label: 'Senior Architect',
-    code: 'RSA',
+    label: 'Automation Architect',
+    code: 'AA',
     icon: '⬢',
     color: 'text-amber-400',
     border: 'border-amber-500/40',
@@ -47,8 +47,8 @@ export const RANK_META = {
   },
   // Reserved — not wired to any gate yet
   sovereign_operator: {
-    label: 'Sovereign Operator',
-    code: 'RSO',
+    label: 'Sovereign Automation Operator',
+    code: 'SAO',
     icon: '✦',
     color: 'text-rose-400',
     border: 'border-rose-500/40',

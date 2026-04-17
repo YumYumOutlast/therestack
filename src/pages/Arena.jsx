@@ -11,11 +11,14 @@ import { RANK_META } from '../lib/rankMeta'
 import { NEXT_RANK_UNLOCK, RANK_XP_BOUNDS, getRankProgress, userHasTier } from '../lib/rankThresholds'
 import { fetchUserXp } from '../lib/xp'
 
-const TIER_ORDER = ['free', 'starter', 'playbook', 'operator']
+const SECTIONS = [
+  { key: 'free',      label: 'Automation Trainee Challenges',            tier: 'free' },
+  { key: 'starter',   label: 'Automation Operator I Challenges',         tier: 'starter' },
+  { key: 'playbook',  label: 'Automation Operator II Challenges',        tier: 'playbook' },
+  { key: 'operator',  label: 'Certified Automation Operator Challenges', tier: 'operator' },
+  { key: 'architect', label: 'Automation Architect Builds',              tier: 'operator' },
+]
 
-const TIER_LABELS = { free: 'Free', starter: 'Starter', playbook: 'Playbook', operator: 'Operator' }
-
-// Upgrade details per tier — links and pricing for locked-card overlays
 const TIER_UPGRADE = {
   starter: { price: 27,  name: 'Starter Kit',           url: NEXT_RANK_UNLOCK.flow.gumroadUrl },
   playbook: { price: 79,  name: 'AI-Proof Playbook',     url: NEXT_RANK_UNLOCK.builder.gumroadUrl },
@@ -107,7 +110,7 @@ function ChallengeCard({ challenge, locked, completed, onOpenModal }) {
                 rel="noopener noreferrer"
                 className="bg-teal-500 hover:bg-teal-400 text-black font-bold text-sm px-5 py-2 rounded-lg transition-colors no-underline"
               >
-                Unlock {TIER_LABELS[challenge.tier]} →
+                Unlock Access →
               </a>
             </>
           ) : (
@@ -124,16 +127,16 @@ function ChallengeCard({ challenge, locked, completed, onOpenModal }) {
   )
 }
 
-// ── Tier section ─────────────────────────────────────────────────────────────
+// ── Section ───────────────────────────────────────────────────────────────────
 
-function TierSection({ tier, challenges, profile, user, completions, onOpenModal }) {
-  const hasAccess = useTierAccess(profile, tier)
+function ChallengeSection({ section, challenges, profile, user, completions, onOpenModal }) {
+  const hasAccess = useTierAccess(profile, section.tier)
   const locked = !user || !hasAccess
 
   return (
     <section className="mb-10">
       <div className="flex items-center gap-3 mb-4">
-        <h2 className="text-white text-xl font-bold">{TIER_LABELS[tier]} Challenges</h2>
+        <h2 className="text-white text-xl font-bold">{section.label}</h2>
         <span className="text-zinc-500 text-sm">{challenges.length}</span>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -189,8 +192,8 @@ export default function Arena() {
   const show80Warning = pct >= 80 && pct < 100 && !hasNextTier && unlock?.gumroadUrl
 
   const grouped = useMemo(() => {
-    const map = { free: [], starter: [], playbook: [], operator: [] }
-    for (const c of ARENA_CHALLENGES) { if (map[c.tier]) map[c.tier].push(c) }
+    const map = { free: [], starter: [], playbook: [], operator: [], architect: [] }
+    for (const c of ARENA_CHALLENGES) { if (map[c.section] !== undefined) map[c.section].push(c) }
     return map
   }, [])
 
@@ -203,12 +206,31 @@ export default function Arena() {
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-white mb-2">The Arena</h1>
           <p className="text-zinc-400 text-sm">
-            Twelve real-world automation challenges. Complete them to stack XP and unlock ranks.
+            14 real-world automation challenges built with Claude Code. Complete them to stack XP and unlock ranks.
             Self-reported — we trust you to actually do the work.
           </p>
         </div>
 
         {user && <XPBar />}
+
+        {/* Claude Code callout */}
+        <div className="border-l-4 border-teal-400 bg-zinc-900 rounded-r-xl px-6 py-5 mb-6">
+          <div className="flex items-start justify-between gap-4">
+            <p className="text-zinc-300 text-sm leading-relaxed">
+              We build everything here with <span className="text-white font-semibold">Claude Code</span>.
+              The Pro plan works. The Max plan ($100/mo) is the unfair advantage — it pays for itself
+              the first time a client pays you $500 for an automation you built in 2 hours.
+            </p>
+            <a
+              href="https://claude.ai/code"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="shrink-0 text-teal-400 text-xs font-bold border border-teal-500/40 px-3 py-1.5 rounded-lg hover:bg-teal-500/10 transition-colors no-underline whitespace-nowrap"
+            >
+              claude.ai/code →
+            </a>
+          </div>
+        </div>
 
         {/* 80% warning band */}
         {show80Warning && (
@@ -259,14 +281,14 @@ export default function Arena() {
           </div>
         )}
 
-        {/* Challenge tiers */}
-        {TIER_ORDER.map((tier) => {
-          const challenges = grouped[tier]
-          if (!challenges.length) return null
+        {/* Challenge sections */}
+        {SECTIONS.map((section) => {
+          const challenges = grouped[section.key]
+          if (!challenges?.length) return null
           return (
-            <TierSection
-              key={tier}
-              tier={tier}
+            <ChallengeSection
+              key={section.key}
+              section={section}
               challenges={challenges}
               profile={profile}
               user={user}
