@@ -38,7 +38,7 @@ export const RANK_META = {
     bg: 'bg-purple-500/10',
   },
   sovereign: {
-    label: 'Systems Architect',
+    label: 'Senior Architect',
     code: 'RSA',
     icon: '⬢',
     color: 'text-amber-400',
