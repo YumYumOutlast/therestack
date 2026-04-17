@@ -4,7 +4,7 @@ import { RANK_ORDER, RANK_META } from '../lib/rankMeta'
 import { RANK_XP_BOUNDS, getRankProgress } from '../lib/rankThresholds'
 import { fetchUserXp } from '../lib/xp'
 
-export default function XPBar() {
+export default function XPBar({ refreshKey = 0 }) {
   const { user, profile } = useAuth()
   const [xp, setXp] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -23,7 +23,7 @@ export default function XPBar() {
       }
     })
     return () => { cancelled = true }
-  }, [user])
+  }, [user, refreshKey])
 
   const rank = profile?.rank ?? 'recruit'
   const meta = RANK_META[rank] ?? RANK_META.recruit

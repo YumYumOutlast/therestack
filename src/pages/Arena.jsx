@@ -160,6 +160,7 @@ export default function Arena() {
   const { user, profile } = useAuth()
   const [completions, setCompletions] = useState(new Set())
   const [xp, setXp] = useState(0)
+  const [xpRefreshKey, setXpRefreshKey] = useState(0)
   const [modalChallenge, setModalChallenge] = useState(null)
 
   useEffect(() => {
@@ -180,6 +181,7 @@ export default function Arena() {
     setCompletions((prev) => { const next = new Set(prev); next.add(challengeId); return next })
     setModalChallenge(null)
     if (user) fetchUserXp(user.id).then(setXp)
+    setXpRefreshKey((k) => k + 1)
   }
 
   // ── Soft-wall / 80% warning ───────────────────────────────────────────────
@@ -211,7 +213,7 @@ export default function Arena() {
           </p>
         </div>
 
-        {user && <XPBar />}
+        {user && <XPBar refreshKey={xpRefreshKey} />}
 
         {/* Claude Code callout */}
         <div className="border-l-4 border-teal-400 bg-zinc-900 rounded-r-xl px-6 py-5 mb-6">
