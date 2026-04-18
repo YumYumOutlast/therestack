@@ -72,16 +72,26 @@ async function main() {
 
   // ── 2. Click Sign in → sign in ────────────────────────────────────────────
   await runStep(2, `Sign in as ${EMAIL}`, async () => {
-    const signInLink = page.getByRole('link', { name: /^Sign in$/i }).first()
-    if (await signInLink.count() > 0) {
-      await signInLink.click()
-    } else {
-      await page.goto(`${BASE_URL}/login`, { waitUntil: 'domcontentloaded' })
-    }
+    // Go directly to /login. The landing page "Sign in" link hunt was
+    // flaky — sometimes matched nothing, sometimes matched the wrong link.
+    await page.goto(`${BASE_URL}/login`, { waitUntil: 'domcontentloaded' })
+    await page.waitForLoadState('networkidle').catch(() => {})
+
+    // Wait for the form inputs to actually be in the DOM (React hydration).
+    await page.waitForSelector('input[type="email"]', { timeout: 10000 })
+
     await page.locator('input[type="email"]').fill(EMAIL)
     await page.locator('input[type="password"]').fill(PASSWORD)
-    await page.getByRole('button', { name: /^Sign in/i }).click()
-    await page.waitForURL(/\/profile/, { timeout: 10000 })
+
+    // The button label is "Sign in" at rest and "Signing in..." while loading.
+    // Match only the exact resting label so we click before the loading state,
+    // and scope to a button (not a link or heading).
+    const submitBtn = page.getByRole('button', { name: /^Sign in$/i })
+    await submitBtn.click()
+
+    // Give Supabase time for a cold-start auth round trip. 20s is generous
+    // and still fails fast if auth is actually broken.
+    await page.waitForURL(/\/profile/, { timeout: 20000 })
     return `signed in, landed at ${page.url()}`
   })
 
@@ -95,18 +105,26 @@ async function main() {
 
   // ── 4. Click Free in nav → verify /free content ───────────────────────────
   await runStep(4, 'Click "Free" in nav and verify /free loads', async () => {
+    // ProtectedRoute renders a loading spinner while auth resolves, so the
+    // Navbar (and the Free link inside it) isn't in the DOM immediately
+    // after redirect. Wait for the link to actually appear before clicking.
+    await page.waitForSelector('a[href="/free"]', { timeout: 15000 })
     const freeLink = page.getByRole('link', { name: /^Free$/ }).first()
     if (await freeLink.count() === 0) throw new Error('no "Free" link in nav')
     await freeLink.click()
-    await page.waitForURL(/\/free/, { timeout: 10000 })
+    await page.waitForURL(/\/free/, { timeout: 15000 })
     await page.waitForLoadState('networkidle').catch(() => {})
     if (/\/upgrade/.test(page.url())) {
       throw new Error('redirected to /upgrade — test user lacks free tier access (profile.tier may be null)')
     }
     // Assert the default tab (Start Here) H2 — distinctive to page content,
     // not a tab-button label that would match even on other tabs.
-    const hasH2 = await page.getByText(/Start here\. Pick one workflow/i).count()
-    if (hasH2 === 0) throw new Error('default-tab H2 "Start here. Pick one workflow" not visible')
+    // Wait for it — tab content mounts after React hydration.
+    await page
+      .getByText(/Start here\. Pick one workflow/i)
+      .first()
+      .waitFor({ state: 'visible', timeout: 10000 })
+      .catch(() => { throw new Error('default-tab H2 "Start here. Pick one workflow" not visible within 10s') })
     return '/free loaded on Start Here tab'
   })
 
@@ -116,7 +134,10 @@ async function main() {
     // Click into "Email Drafting" where 4 WorkflowStep checkboxes exist.
     const openTab = async () => {
       const tabBtn = page.getByRole('button', { name: /^Email Drafting$/ }).first()
-      if (await tabBtn.count() === 0) throw new Error('no "Email Drafting" tab button found')
+      // Wait for the tab button to be visible — tab bar hydrates after main content.
+      await tabBtn.waitFor({ state: 'visible', timeout: 10000 }).catch(() => {
+        throw new Error('no "Email Drafting" tab button found within 10s')
+      })
       await tabBtn.click()
       await page.waitForTimeout(500)
     }
@@ -225,15 +246,30 @@ async function main() {
 
   // ── 9. Confirm XP bar updated ─────────────────────────────────────────────
   await runStep(9, 'XP bar shows non-zero XP after submission', async () => {
-    // Force a fresh read of the XP element
-    const xpEl = page.getByText(/\d[\d,]*\s*XP/).first()
-    if (await xpEl.count() === 0) throw new Error('no XP text visible on /arena')
-    const text = (await xpEl.textContent()) || ''
-    const n = parseInt(text.replace(/[^\d]/g, ''), 10)
-    if (!Number.isFinite(n) || n <= 0) {
-      throw new Error(`XP reads "${text.trim()}" — expected > 0`)
+    // The page has multiple "N XP" strings: rank progress ("0 / 200 XP"),
+    // per-challenge "+15 XP" tags, and the user's total XP. Find the one
+    // that is NOT a "+N XP" tag and NOT a "N / M XP" progress counter,
+    // then assert it's > 0.
+    const all = await page.getByText(/\d[\d,]*\s*XP/).all()
+    let totalXpText = ''
+    let totalXpValue = 0
+    for (const el of all) {
+      const text = ((await el.textContent()) || '').trim()
+      // Skip "+N XP" challenge-reward tags
+      if (/^\+/.test(text)) continue
+      // Skip "N / M XP" progress counters
+      if (/\//.test(text)) continue
+      const n = parseInt(text.replace(/[^\d]/g, ''), 10)
+      if (Number.isFinite(n) && n > 0) {
+        totalXpText = text
+        totalXpValue = n
+        break
+      }
     }
-    return `XP shows "${text.trim()}"`
+    if (totalXpValue <= 0) {
+      throw new Error(`no user-total XP > 0 found on /arena (scanned ${all.length} XP elements)`)
+    }
+    return `user total XP shows "${totalXpText}"`
   })
 
   // ── 10. /profile shows XP ─────────────────────────────────────────────────
@@ -248,6 +284,11 @@ async function main() {
 
   // ── 11. Ask Adonis; response is not an error ──────────────────────────────
   await runStep(11, 'Ask Adonis "explain the first challenge" and verify no error', async () => {
+    // Wait for Supabase session to fully hydrate in the browser before
+    // touching Adonis — /api/chat returns 401 if the session token isn't
+    // attached yet, and the 401 happens before Anthropic is ever called.
+    await page.waitForTimeout(2000)
+
     // Open Adonis if not already open
     let input = page.getByPlaceholder(/Ask Adonis/i)
     if (!(await input.isVisible().catch(() => false))) {
@@ -285,7 +326,13 @@ async function main() {
         throw new Error(`Adonis returned error: "${reply.trim().slice(0, 120)}"`)
       }
     }
-    const preview = reply.trim().replace(/\s+/g, ' ').slice(0, 80)
+    // Empty reply = silent failure (e.g. /api/chat 500 with no body, or
+    // fetch rejected). Require at least 10 chars of actual content.
+    const trimmed = reply.trim()
+    if (trimmed.length < 10) {
+      throw new Error(`Adonis reply too short or empty: "${trimmed}" (length ${trimmed.length})`)
+    }
+    const preview = trimmed.replace(/\s+/g, ' ').slice(0, 80)
     return `Adonis replied: "${preview}${reply.length > 80 ? '…' : ''}"`
   })
 
