@@ -8,7 +8,7 @@
 // anthropic-dangerous-direct-browser-access, which leaked the key to every
 // page load and hit CORS issues in some browsers.
 
-const { createClient } = require('@supabase/supabase-js')
+import { createClient } from '@supabase/supabase-js'
 
 const SUPABASE_URL = process.env.SUPABASE_URL
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
@@ -17,7 +17,7 @@ const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
 const DEFAULT_MODEL = 'claude-sonnet-4-20250514'
 const DEFAULT_MAX_TOKENS = 1000
 
-module.exports = async function handler(req, res) {
+export default async function handler(req, res) {
   if (req.method !== 'POST') {
     res.setHeader('Allow', 'POST')
     return res.status(405).json({ error: 'method_not_allowed' })
