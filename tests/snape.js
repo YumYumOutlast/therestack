@@ -300,7 +300,11 @@ async function main() {
       await input.waitFor({ state: 'visible', timeout: 4000 })
     }
 
-    const bubbleSelector = 'div.bg-zinc-800'
+    // Narrow to assistant-reply bubbles only. The typing indicator ALSO uses
+    // bg-zinc-800 but lacks text-zinc-100, so the old selector was catching
+    // the indicator the instant `loading` became true — and reading its
+    // empty text before Anthropic's real reply landed ~6s later.
+    const bubbleSelector = 'div.bg-zinc-800.text-zinc-100'
     const before = await page.locator(bubbleSelector).count()
     await input.fill('explain the first challenge')
     await input.press('Enter')
